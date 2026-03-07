@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Warehouse Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+    <div id="tooltip" class="tooltip hidden"></div>
+
+    <div id="loginSection">
+        <!-- كل كود الـ login هنا -->
+        <div id="loginContainer" class="login-wrapper">
+            <form id="loginForm" class="login-card">
+                <h2 class="login-title">
+                    <span>MY</span>HOLDAL
+                </h2>
+
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input id="username" placeholder="Username" required>
+                </div>
+
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input id="password" type="password" placeholder="Password" required>
+                </div>
+
+                <button class="login-btn">
+                    <i class="fa-solid fa-right-to-bracket"></i> Login
+                </button>
+
+                <p id="loginError" class="login-error hidden">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    Incorrect username or password
+                </p>
+            </form>
+        </div>
+
+    </div>
+    <div id="dashboard" class="hidden app">
+        <aside class="sidebar">
+            <h2><i class="fa-solid fa-warehouse"></i>Operation dashboard system</h2>
+            <a href="#" onclick="showDashboardHome()">
+                <i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            <div class="menu-item">
+                <a href="#" onclick="toggleMenu('warehousesMenu')">
+
+                    <a href="#" onclick="toggleMenu('warehousesMenu')">
+                        <a href="./p&c.html"><i class="fa-solid fa-boxes-stacked"></i> Warehouses</a>
+
+            </div>
+            <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
+            <a href="#" onclick="showNewOrderTab()">
+                <i class="fa-solid fa-plus"></i> New Orders</a>
+        </aside>
+
+        <main class="main">
+            <header style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
+                <h3><B style="font-style: 26px;">My</B>Holdal</h3>
+                <div style="display:flex;gap:10px;align-items:center">
+                    <button type="button" id="toggleFrDate" style="padding:4px 8px; font-size:12px;"> from</button>
+
+                    <input type="date" id="dateFrom" onchange="updateDashboard()">
+
+                    <button type="button" id="toggleToDate" style="padding:4px 8px; font-size:12px;"> to</button>
+
+                    <input type="date" id="dateTo" onchange="updateDashboard()">
+
+                    <div class="quick-menu">
+                        <button class="three-dots" onclick="toggleQuickMenu(event)">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+
+                        <div id="quickDateMenu" class="quick-dropdown hidden">
+                            <div onclick="setQuickDate('today')">
+                                <i class="fa-regular fa-calendar-day"></i> Today
+                            </div>
+                            <div onclick="setQuickDate('yesterday')">
+                                <i class="fa-regular fa-calendar-minus"></i> Yesterday
+                            </div>
+                            <div onclick="setQuickDate('week')">
+                                <i class="fa-regular fa-calendar-week"></i> This Week
+                            </div>
+                            <div onclick="setQuickDate('month')">
+                                <i class="fa-regular fa-calendar"></i> This Month
+                            </div>
+                            <button id="resetFiltersBtn" onclick="resetFilters()" style="  
+                             padding:6px 10px;  
+                             border-radius:10px;  
+                             background:#7f1d1d;  
+                             font-size:12px;  
+                             ">
+       
+                                Reset
+
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+                <div id="liveStatus" style="  
+padding:6px 10px;  
+border-radius:10px;  
+background:#020617;  
+font-size:12px;  
+display:flex;  
+gap:6px;  
+align-items:center;
+
+">
+                    <span id="liveDot" style="  
+width:8px;  
+height:8px;  
+border-radius:50%;  
+background:#22c55e;  
+"></span>
+                    <span id="liveText">LIVE</span>
+
+                </div>
+            </header>
+            <div id="newOrderTab" class="card hidden" style="margin-top:30px">
+
+                <h3 style="
+        color:var(--accent);
+        margin-bottom:20px;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        font-size:20px;
+    ">
+                    <i class="fa-solid fa-circle-plus"></i>
+                    Add New Order
+                </h3>
+
+                <div class="new-order-grid">
+
+                    <div class="input-group">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input type="text" id="newOrderNumber" placeholder="Order Number">
+                    </div>
+
+                    <div class="input-group">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <input type="text" id="newWarehouseName" placeholder="Warehouse Name">
+                    </div>
+
+                    <div class="input-group">
+                        <i class="fa-solid fa-calendar"></i>
+                        <input type="date" id="newOrderDate">
+                    </div>
+
+                    <button onclick="saveNewOrder()" class="save-order-btn">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Save Order
+                    </button>
+                    <div style="margin-bottom:15px; position:relative;">
+                        <input type="text" id="newOrderSearch" placeholder="Search by Order #..." style="
+            width:100%;
+            padding:10px 14px 10px 40px;
+            margin-top:20px;
+            border-radius:12px;
+            border:1px solid #1f2937;
+            background:#0f172a;
+            color:white;
+            outline:none;
+            font-size:14px;
+        " />
+
+
+                        </span>
+                    </div>
+                </div>
+
+                <div id="newOrderPreview" class="hidden">
+                    <h3 style="margin-bottom:15px">Recent Orders</h3>
+                    <div id="newOrdersList"></div>
+                </div>
+
+            </div>
+            <div class="kpis">
+                <div class="kpi" onclick="showOrderDetails('total')">
+                    <div>Total Orders</div>
+                    <div id="total" class="value">0</div>
+                </div>
+                <div class="kpi" onclick="showOrderDetails('completed')">
+                    <div>In-Packing</div>
+                    <div id="completed" class="value success">
+                        <div class="main-number">0</div>
+                        <div class="sub-number"></div>
+                    </div>
+                </div>
+
+                <div class="kpi" onclick="showOrderDetails('pending')">
+                    <div>Pending</div>
+                    <div id="pending" class="value warning">
+                        <div class="main-number">0</div>
+                        <div class="sub-number"></div>
+                    </div>
+                </div>
+                <div class="kpi" onclick="showOrderDetails('distributed')">
+                    <div>Distributed</div>
+                    <div id="distributed" class="value success">0</div>
+                </div>
+                <div class="kpi" onclick="showOrderDetails('canceled')">
+                    <div>Canceled Before Delivery</div>
+                    <div id="canceled" class="value" style="color:#f76666">0</div>
+                </div>
+            </div>
+
+            <div class="warehouse-container">
+
+
+                <div class="card">
+                    <h3 style="color:var(--accent)">Multi-Warehouse Orders</h3>
+                    <div id="multiWHTable"></div>
+                </div>
+
+                <div class="card">
+                    <h3 style="color:var(--accent)">Single-Warehouse Orders</h3>
+                    <div id="singleWHTable"></div>
+                </div>
+            </div>
+            <div class="sales-order two-columns">
+
+                <div class="card">
+                    <h3 style="color:var(--accent)">Sales order details</h3>
+                    <div id="warehouseBreakdownTable"></div>
+                </div>
+
+                <div class="card">
+                    <h3 style="color:var(--accent)">Tracking</h3>
+
+                    <input type="text" id="orderSearch" placeholder="Search Order #" class="search-input"
+                        oninput="updateSearch()">
+
+                    <div id="searchResultsCard" style="display:none">
+                        <div id="searchResultsTable"></div>
+                    </div>
+
+                </div>
+
+            </div>
+    </div>
+
+    </div>
+    </main>
+    </div>
+
+    </div>
+    <div id="orderDetails" class="hidden">
+        <div class="card">
+            <div style="margin-bottom:10px; font-size:13px;">
+                <span style="color:#16a34a; font-weight:600">● In-Packing</span>
+                &nbsp;&nbsp;
+                <span style="color:#f59e0b; font-weight:600">● Partial / pending</span>
+                &nbsp;&nbsp;
+                <span style="color:#22c55e; font-weight:600">● Distributed</span>
+
+            </div>
+            <button onclick="closeOrderDetails()" style="float:right;background:#ef4444">Close</button>
+            <button onclick="exportOrderDetailsToExcel()" style="float:right;margin-right:8px;background:#22c55e">Export
+                to Excel</button>
+            <h3 style="color:var(--accent)" id="orderDetailsTitle">Order Details</h3>
+            <div id="orderList"></div>
+        </div>
+    </div> <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h2><span>MY</span> HOLDAL</h2>
+            <p>Loading Dashboard...</p>
+        </div>
+
+        <div id="toast" style="  
+    position: fixed;  
+    bottom: 20px;  
+    right: 20px;  
+    background: #020617;  
+    color: white;  
+    padding: 14px 18px;  
+    border-radius: 14px;  
+    box-shadow: 0 20px 40px rgba(0,0,0,.6);  
+    display: flex;  
+    align-items: center;  
+    gap: 10px;  
+    font-size: 14px;  
+    opacity: 0;  
+    transform: translateY(20px);  
+    transition: all .3s ease;  
+    z-index: 99999;  
+">
+            <i class="fa-solid fa-bell" style="color:#22c55e"></i>
+            <span id="toastText">New orders received</span>
+        </div>
+
+        <audio id="toastSound">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3"
+                type="audio/mpeg">
+        </audio>
+        <!-- NEW ORDER TAB -->
+
+    </div>
+
+
+
+</body>
+
+</html>
