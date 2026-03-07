@@ -310,6 +310,31 @@ background:#22c55e;
 
     </div>
 
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAI1MdaVUyB8LurtoAh-X6a9amGPJX_d6Y",
+    authDomain: "dushboard-system.firebaseapp.com",
+    databaseURL: "https://dushboard-system-default-rtdb.firebaseio.com",
+    projectId: "dushboard-system",
+    storageBucket: "dushboard-system.firebasestorage.app",
+    messagingSenderId: "531831609541",
+    appId: "1:531831609541:web:388c78af1ba30174f738ac",
+    measurementId: "G-1W4C77DHNJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // 🔥 نجعلها متاحة عالمياً
+  window.db = database;
+  window.ref = ref;
+  window.push = push;
+  window.onValue = onValue;
+</script>
+
 
 
 </body>
