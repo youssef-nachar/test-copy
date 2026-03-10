@@ -85,7 +85,10 @@ const users = [
 
 { username: "lorealLuxUser", password: "123456", warehouse: "LOREAL LUX", role: "user" },
 
-{ username: "beeslineUser", password: "123456", warehouse: "BEESLINE", role: "user" }
+{ username: "beeslineUser", password: "123456", warehouse: "BEESLINE", role: "user" },
+
+// 🔵 Packing Station User
+{ username: "packingUser", password: "123456", warehouse: "Packing Station", role: "packing" }
 
 ];
 
@@ -1324,10 +1327,33 @@ displayOrders(o, `Warehouse: ${warehouse}`);
 </div>  
 `;
             }).join("")}  
-          </td>  
-          <td style="font-weight:600; color:#9ca3af">  
-            ${statusText}  
-          </td>  
+<td style="font-weight:600; color:#9ca3af">
+
+${statusText}
+
+${
+localStorage.getItem("currentWarehouse") === "Packing Station"
+&& order.status === "pending"
+
+? `
+<button onclick="receiveInPacking('${order.orderNo}')"
+style="
+margin-left:8px;
+background:#22c55e;
+border:none;
+padding:4px 8px;
+border-radius:6px;
+cursor:pointer;
+font-size:11px;
+font-weight:600;
+">
+Received
+</button>
+`
+: ""
+}
+
+</td> 
         </tr>  
         `;
         });
@@ -1571,116 +1597,85 @@ setTodayForNewOrder();
 
     // =============================
 function saveNewOrder() {
-console.log(or);
-const merged = mergeOrdersByNumber(orders);
-    const orderNo = document
-        .getElementById("newOrderNumber")
-        .value.trim()
-        .toUpperCase();
 
-    const warehouseInput = document
-        .getElementById("newWarehouseName")
-        .value.trim();
+const orderNo = document
+.getElementById("newOrderNumber")
+.value.trim()
+.toUpperCase();
 
-    const date = document
-        .getElementById("newOrderDate")
-        .value;
+const warehouseInput = document
+.getElementById("newWarehouseName")
+.value.trim()
+.toUpperCase();
 
-    if (!orderNo || !warehouseInput || !date) {
-        showToast("⚠️ Please fill all fields");
-        return;
-    }
+const date = document
+.getElementById("newOrderDate").value;
 
-    const normalized = normalizeWarehouse(warehouseInput);
-    const warehouse = normalized.base.trim().toUpperCase();
-
-    const ordersRef = ref(db, "orders");
-
-    get(ordersRef).then(snapshot => {
-
-        const data = snapshot.val();
-        let existingKey = null;
-
-        if (data) {
-            Object.entries(data).forEach(([key, order]) => {
-
-    if (order.orderNo?.trim().toUpperCase() === orderNo.trim().toUpperCase()) {
-        existingKey = key;
-    }
-
-});
-        }
-
-        // ============================
-        // ORDER EXISTS
-        // ============================
-        if (existingKey) {
-
-            const order = data[existingKey];
-
-            const newWarehouseNormalized = warehouse.trim().toUpperCase();
-
-            const existingWarehouses = (order.warehouses || []).map(w =>
-    (w.base || "").trim().toUpperCase()
-);
-            if (existingWarehouses.includes(newWarehouseNormalized)) {
-    showToast("⚠️ This warehouse already exists in this order");
-    return;
+if (!orderNo || !warehouseInput || !date) {
+showToast("⚠️ Please fill all fields");
+return;
 }
 
-            const newWarehouse = {
-                base: warehouse,
-                packed: false,
-                receivedTime: new Date().toISOString()
-            };
+const ordersRef = ref(db,"orders");
 
-            const updatedWarehouses = [
-                ...(order.warehouses || []),
-                newWarehouse
-            ];
+runTransaction(ordersRef,(orders)=>{
 
-            update(ref(db, "orders/" + existingKey), {
-                warehouses: updatedWarehouses
-            });
+if(!orders) orders = {};
 
-            showToast("✅ Warehouse added to existing order");
-        }
+let existingKey = null;
 
-        // ============================
-        // NEW ORDER
-        // ============================
-        else {
+Object.entries(orders).forEach(([key,order])=>{
+if(order.orderNo === orderNo){
+existingKey = key;
+}
+});
 
-            const newOrder = {
+if(existingKey){
 
-                orderNo: orderNo,
-                date: date,
-                createdAt: new Date().toISOString(),
+const order = orders[existingKey];
 
-                warehouses: [
-                    {
-                        base: warehouse,
-                        packed: false,
-                        receivedTime: new Date().toISOString()
-                    }
-                ],
+const exists = order.warehouses?.some(
+w => w.base.toUpperCase() === warehouseInput
+);
 
-                status: "pending"
-            };
+if(exists) return orders;
 
-            push(ordersRef, newOrder);
+order.warehouses.push({
+base: warehouseInput,
+packed:false,
+receivedTime:new Date().toISOString()
+});
 
-            showToast("✅ Order created");
-        }
+orders[existingKey] = order;
 
-        clearNewOrderForm();
+}
 
-    }).catch(err => {
+else{
 
-        console.error(err);
-        showToast("❌ Error saving order");
+const newKey = push(ref(db,"orders")).key;
 
-    });
+orders[newKey] = {
+orderNo:orderNo,
+date:date,
+createdAt:new Date().toISOString(),
+warehouses:[
+{
+base:warehouseInput,
+packed:false,
+receivedTime:new Date().toISOString()
+}
+],
+status:"pending"
+};
+
+}
+
+return orders;
+
+}).then(()=>{
+showToast("✅ Order saved");
+clearNewOrderForm();
+});
 
 }
 // 🔥 
@@ -1707,77 +1702,64 @@ function buildRecentOrders(){
 }
 
 
-function renderRecentOrders(){
-allOrders.forEach(order=>{
-    order.warehouseCount = order.warehouses.length;
-});
+function renderRecentOrders() {
     const container = document.getElementById("newOrdersList");
-    if(!container) return;
-
+    if (!container) return;
     container.innerHTML = "";
 
-    recentOrders.forEach(order=>{
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
+    recentOrders.forEach(order => {
         const card = document.createElement("div");
-
         card.style.cssText = `
             background:#0f172a;
             border:1px solid #1f2937;
             padding:14px;
             border-radius:12px;
             margin-bottom:8px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
         `;
 
-        const statusColor =
-            order.status === "distributed" ? "#22c55e" :
-            order.status === "completed" ? "#22c55e" :
-            order.status === "partial" ? "#f59e0b" :
-            order.status === "canceled" ? "#ef4444" :
-            "#f59e0b";
+        const statusColor = order.status === "distributed" ? "#22c55e" :
+                            order.status === "completed" ? "#22c55e" :
+                            order.status === "partial" ? "#f59e0b" :
+                            order.status === "canceled" ? "#ef4444" :
+                            "#f59e0b";
+
+        // عرض كل مستودع مع زر Receive إذا المستخدم في Packing Station ولم يتم التعبئة
+        const warehousesHTML = order.warehouses.map(w => {
+            const isPacking = currentWarehouse === "Packing Station" && !w.packed;
+            const btn = isPacking ? `<button onclick="markWarehousePacking('${order.orderNo}','${w.base}')"
+                style="margin-left:6px;background:#22c55e;border:none;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Receive</button>` : "";
+            return `<span style="margin-right:6px">${w.base.toUpperCase()} ${btn}</span>`;
+        }).join("");
 
         card.innerHTML = `
-            <div>
-                <div style="font-weight:600">
-                    ${order.orderNo}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                    <div style="font-weight:600;margin-bottom:6px">${order.orderNo}</div>
+                    <div style="font-size:12px;opacity:.7;margin-bottom:4px">${warehousesHTML}</div>
+                    <div style="font-size:11px;opacity:.6">
+                        ${order.createdAt ? new Date(order.createdAt).toLocaleString() : order.date}
+                    </div>
                 </div>
-
-                <div style="font-size:12px;opacity:.7;margin-top:3px">
-                    ${order.warehouses.map(w=>w.base).join(" | ")}
-                </div>
-
-               <div style="font-size:11px;opacity:.6;margin-top:2px">
-    ${
-        order.createdAt
-        ? new Date(order.createdAt).toLocaleDateString() +
-          " • " +
-          new Date(order.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
-        : order.date
-    }
-</div>
+                <span style="
+                    background:${statusColor};
+                    padding:5px 12px;
+                    border-radius:20px;
+                    font-size:11px;
+                    font-weight:600;
+                    color:black;
+                ">
+                    ${order.status}
+                </span>
             </div>
-
-            <span style="
-                background:${statusColor};
-                padding:5px 12px;
-                border-radius:20px;
-                font-size:11px;
-                font-weight:600;
-                color:black;
-            ">
-                ${order.status}
-            </span>
         `;
-
         container.appendChild(card);
     });
 
-    document.getElementById("newOrderPreview")
-        .classList.remove("hidden");
+    document.getElementById("newOrderPreview").classList.remove("hidden");
 }
-    const newOrderInput = document.getElementById("newOrderNumber");
+const newOrderInput = document.getElementById("newOrderNumber");
 
     newOrderInput.addEventListener("input", function () {
 
@@ -2084,21 +2066,22 @@ function listenToOrders(){
         let mergedOrders = mergeOrdersByNumber(firebaseOrders);
 
         // 🔥 المدير يرى كل الطلبات
-        if(role === "manager"){
+if(role === "manager" || currentWarehouse === "Packing Station"){
 
-            allOrders = mergedOrders;
+    // يرى كل الطلبات
+    allOrders = mergedOrders;
 
-        }else{
+}else{
 
-            const normalizedUserWH = currentWarehouse.trim().toUpperCase();
+    const normalizedUserWH = currentWarehouse.trim().toUpperCase();
 
-            allOrders = mergedOrders.filter(order =>
-                order.warehouses?.some(w =>
-                    w.base?.trim().toUpperCase() === normalizedUserWH
-                )
-            );
+    allOrders = mergedOrders.filter(order =>
+        order.warehouses?.some(w =>
+            w.base?.trim().toUpperCase() === normalizedUserWH
+        )
+    );
 
-        }
+}
 
         // 🔥 تحديث الحالة وعدد المستودعات
         allOrders.forEach(order=>{
@@ -2113,6 +2096,7 @@ function listenToOrders(){
         renderRecentOrders();
 
         updateDashboard();
+renderPackingQueue();   // ⭐ هذا السطر الجديد
 
     });
 
@@ -2255,7 +2239,6 @@ warehouses:updatedWarehouses
 },{onlyOnce:true});
 
 }
-
 function showPackingSelection(order){
 
 const modal = document.getElementById("orderDetails");
@@ -2324,4 +2307,40 @@ function log(msg) {
         return d;
     })();
     el.innerHTML += msg + "<br>";
+}
+
+function receiveInPacking(orderNo){
+
+const ordersRef = ref(db,"orders");
+
+onValue(ordersRef,(snapshot)=>{
+
+const data = snapshot.val();
+
+Object.entries(data).forEach(([key,order])=>{
+
+if(order.orderNo === orderNo){
+
+update(ref(db,"orders/"+key),{
+status:"completed",
+packingReceivedTime:new Date().toISOString()
+});
+
+}
+
+});
+
+},{onlyOnce:true});
+
+}
+function clearAllOrders(){
+
+remove(ref(db,"orders"))
+.then(()=>{
+showToast("🗑️ All orders deleted");
+})
+.catch(err=>{
+console.error(err);
+});
+
 }
