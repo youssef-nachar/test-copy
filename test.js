@@ -2096,7 +2096,7 @@ if(role === "manager" || currentWarehouse === "Packing Station"){
         renderRecentOrders();
 
         updateDashboard();
-renderPackingQueue();   // ⭐ هذا السطر الجديد
+
 
     });
 
