@@ -1,16 +1,4 @@
-
-
-
-    const orderDetails = document.getElementById("orderDetails");
-
-    orderDetails.addEventListener("click", (e) => {
-        if (e.target === orderDetails) {
-            orderDetails.classList.add("hidden");
-        }
-    });
-
-
-    let refreshTimer = null;
+let refreshTimer = null;
     let isRefreshing = false;
     let showOnlyBacklog = false;
     let firstLoad = true;
@@ -38,7 +26,13 @@
     const loginContainer = document.getElementById("loginContainer");
     const dashboard = document.getElementById("dashboard");
 window.addEventListener('DOMContentLoaded', () => {
+const orderDetails = document.getElementById("orderDetails");
 
+orderDetails.addEventListener("click", (e) => {
+    if (e.target === orderDetails) {
+        orderDetails.classList.add("hidden");
+    }
+});
     const loggedIn = localStorage.getItem("isLoggedIn");
     const role = localStorage.getItem("userRole");
 
@@ -49,11 +43,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (role === "manager") {
 
-            loadData();
-            startLiveDashboard();
-            listenToOrders();
+    listenToOrders();
 
-        } else {
+} else {
 
             document.querySelector(".kpis").style.display = "none";
             document.querySelector(".warehouse-container").style.display = "none";
@@ -82,13 +74,22 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 const users = [
-    { username: "manager", password: "123456", warehouse: "P&C", role: "manager" },
 
-    { username: "pharmaUser", password: "123456", warehouse: "Pharma", role: "user" },
-    { username: "retailUser", password: "123456", warehouse: "Retail", role: "user" },
-    { username: "packing", password: "123456", warehouse: "Packing Station", role: "user" }
+{ username: "manager", password: "123456", warehouse: "P&C", role: "manager" },
+
+{ username: "pharmaUser", password: "123456", warehouse: "PHARMA", role: "user" },
+
+{ username: "retailUser", password: "123456", warehouse: "RETAIL", role: "user" },
+
+{ username: "pcUser", password: "123456", warehouse: "P&C", role: "user" },
+
+{ username: "lorealLuxUser", password: "123456", warehouse: "LOREAL LUX", role: "user" },
+
+{ username: "beeslineUser", password: "123456", warehouse: "BEESLINE", role: "user" }
+
 ];
- //   const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAeWlFZdvqQqrWCq0uJKqxz6boomvVuNal1IYM1tOuoeraNE_ZW2BfYYKr3lKfmldOWOgWAXhz88Ke/pub?output=csv";
+
+//   const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAeWlFZdvqQqrWCq0uJKqxz6boomvVuNal1IYM1tOuoeraNE_ZW2BfYYKr3lKfmldOWOgWAXhz88Ke/pub?output=csv";
 
     let allOrders = [];
     const distributionSheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTecpCEwZ10-Ncz2y0xSsAnNdLXcWDGt_GiAeJlbWYhgg9B8zlhvJ1DeDH8H0NDSg/pub?output=csv";
@@ -463,14 +464,11 @@ autoMoveToPacking();
     dashboard.classList.remove("hidden");
 
     // 🔥 manager يرى كل شيء
-    if (u.role === "manager") {
+   if (u.role === "manager") {
 
-        loadData();
-        startLiveDashboard();
-        listenToOrders();
+    listenToOrders();
 
-    } 
-    
+}
     // 🔥 باقي المستخدمين New Order فقط
     else {
 
@@ -613,176 +611,7 @@ function getWarehouseBadgeColor(order, warehouse) {
     }
     let highestOrderCountSeen = 0;
     let highestEffectiveDateSeen = null;
-    async function loadData({ force = false, silent = false } = {}) {
-        if (isLoading) return;
-        isLoading = true;
-
-        if (!silent && !dataCache) loadingOverlay.classList.remove("hidden");
-
-        try {
-            await loadDistributedOrders();
-            await loadCanceledOrders();   // 🔥 هذا السطر كان ناقص 
-
-            const res = await fetch(sheetURL + "&t=" + Date.now(), {
-                cache: "no-store"
-            });
-            const csv = await res.text();
-            const parsed = Papa.parse(csv, { skipEmptyLines: true });
-            const rows = parsed.data;
-            if (!rows.length) return;
-
-            const headers = rows.shift().map(h => h.toLowerCase().trim());
-            const col = {};
-            headers.forEach((h, i) => col[h] = i);
-
-            const ORDER = col["shopify order#"];
-            const DATE = col["order received in wh"];
-            const WH = col["warehouse name"];
-            const PACKED = col["packed"] || null;
-
-            const map = {};
-
-            rows.forEach(r => {
-                const orderNo = r[ORDER]?.trim().toUpperCase();
-                const date = formatDateForInput(r[DATE]);
-                const whRaw = r[WH]?.trim();
-                const packedRaw = PACKED ? r[PACKED]?.trim() : null;
-
-                if (!orderNo || !date || !whRaw) return;
-
-                if (!map[orderNo]) {
-                    map[orderNo] = { orderNo, date, wh: {} };
-                }
-
-                // normalize warehouse  
-                const w = normalizeWarehouse(whRaw);
-                if (!w.base) return;
-
-                if (!map[orderNo].wh[w.base]) {
-                    map[orderNo].wh[w.base] = {
-                        base: w.base,
-                        packed: false,
-                        receivedTime: formatDateForInput(r[DATE]),
-                        packingTime: null
-                    };
-                }
-
-                // ✅ معالجة جميع صيغ العمود Packed  
-                const packedValues = ["TRUE", "True", "true", "1", "Yes", "yes", "X", "x"];
-
-                if (w.packed || (packedRaw && packedValues.includes(packedRaw))) {
-                    map[orderNo].wh[w.base].packed = true;
-
-                    // ⬅️ هنا نخزن وقت التحويل إلى Packing
-                    map[orderNo].wh[w.base].packingTime = formatDateForInput(r[DATE]);
-                }
-            });
-
-            // بناء الطلبات النهائية مع تحديد الحالة بدقة  
-            // بناء الطلبات النهائية مع تحديد الحالة بدقة  
-            let newOrders = Object.values(map).map(o => {
-
-                const warehouses = Object.values(o.wh);
-                const totalWH = warehouses.length;
-                const packedWH = warehouses.filter(w => w.packed).length;
-
-                let status;
-
-                // 🔴 CANCELED FIRST (أولوية قصوى)
-                if (canceledOrdersSet.has(o.orderNo)) {
-                    status = "canceled";
-                }
-                else if (distributedOrdersMap[o.orderNo]) {
-                    status = "distributed";
-                    warehouses.forEach(w => w.distributed = true);
-                }
-                else if (totalWH === 1) {
-                    status = warehouses[0].packed ? "completed" : "pending";
-                }
-                else {
-                    if (packedWH === 0) status = "pending";
-                    else if (packedWH < totalWH) status = "partial";
-                    else status = "completed";
-                }
-
-                return {
-                    ...o,
-                    warehouses,
-                    warehouseCount: totalWH,
-                    status
-                };
-
-            });
-            // 🔥 احسب أحدث تاريخ فعلي في البيانات
-            const newestDateInSnapshot = newOrders
-                .map(o => getEffectiveDate(o))
-                .filter(Boolean)
-                .sort()
-                .pop(); // آخر عنصر = أحدث تاريخ
-
-            // 🔥 لو النسخة أقدم من آخر نسخة عرضناها → تجاهلها
-            if (highestEffectiveDateSeen && newestDateInSnapshot < highestEffectiveDateSeen) {
-                console.warn("⚠️ Older snapshot detected — BLOCKED");
-                return;
-            }
-
-            // حدّث أحدث تاريخ
-            highestEffectiveDateSeen = newestDateInSnapshot;
-            if (newOrders.length < highestOrderCountSeen) {
-                console.warn("⚠️ Sheet returned older snapshot — blocked");
-                return;
-            }
-
-            highestOrderCountSeen = newOrders.length;
-            //  if (dataCache && newOrders.length < dataCache.length) {  
-            //   console.warn("Old version detected — skipped");  
-            //   return;  
-            //}  
-            // ❌ إذا رجعت نسخة أقل من الحالية — تجاهلها
-            if (dataCache && newOrders.length < dataCache.length) {
-                console.warn("⚠️ Older version detected — skipped");
-                return;
-            }
-
-            // ❌ إذا الهَاش أقدم أو نفسه — تجاهل
-            const newHash = hashData(newOrders);
-
-            if (!force && dataCache && newHash === lastDataHash) {
-                return; // لا يوجد تغيير
-            }
-            // ❌ إذا لا يوجد تغيير — لا تفعل أي شيء  
-            if (!force && dataCache && newHash === lastDataHash) {
-                return; // يحافظ على الأرقام كما هي  
-            }
-            // إشعار بالطلبات الجديدة  
-            let newOnly = [];
-
-            if (dataCache && Array.isArray(dataCache)) {
-                const oldSet = new Set(dataCache.map(o => o.orderNo));
-                newOnly = newOrders.filter(o => !oldSet.has(o.orderNo));
-            }
-
-            if (dataCache && newOnly.length) {
-                showToast(`🔔 ${newOnly.length} new order(s) received`);
-            }
-
-            dataCache = newOrders;
-            allOrders = newOrders;
-            lastDataHash = newHash;
-
-            updateDashboard();
-            if (!dateFrom.value && !dateTo.value) initDate();
-
-        } catch (e) {
-            console.error("Load error:", e);
-        } finally {
-            isLoading = false;
-            loadingOverlay.classList.add("hidden");
-        }
-    }
-
-    // INIT DATE FILTER  
-
+    
     function initDate() {
         const today = new Date().toISOString().slice(0, 10);
 
@@ -795,18 +624,17 @@ function getWarehouseBadgeColor(order, warehouse) {
 
     function applyFilters() {
 
-        const from = dateFrom.value || null;
-        const to = dateTo.value || null;
+        const from = dateFrom.value ? new Date(dateFrom.value) : null;
+const to = dateTo.value ? new Date(dateTo.value) : null;
 
-        return allOrders.filter(o => {
+return allOrders.filter(o => {
 
-            const dateToCheck = getEffectiveDate(o);
+    const date = new Date(getEffectiveDate(o));
 
-            if (!dateToCheck) return false;
-            if (from && dateToCheck < from) return false;
-            if (to && dateToCheck > to) return false;
+    if(from && date < from) return false;
+    if(to && date > to) return false;
 
-            return true;
+    return true;
         });
     }
     let lastKPI = {
@@ -820,23 +648,22 @@ function getWarehouseBadgeColor(order, warehouse) {
 
         // Distributed
         if (order.status === "distributed") {
-            return distributedOrdersMap[order.orderNo]?.date;
+            return distributedOrdersMap[order.orderNo]?.date?.slice(0,10);
         }
 
         // Completed (In-Packing)
         if (order.status === "completed") {
             const firstPackedWH = order.warehouses.find(w => w.packed);
-            return firstPackedWH?.packingTime || order.date;
-        }
+            return (firstPackedWH?.packingTime || order.date)?.slice(0,10);     }
 
         // Pending / Partial
         return order.date;
     }
     //filteredOrders = Object.values(unique);  
     function updateDashboard() {
-allOrders.forEach(order=>{
-order.status = resolveOrderStatus(order);
-});
+for (const order of allOrders) {
+    order.status = resolveOrderStatus(order);
+}
         const todayOrders = applyFilters();
         const ACCUMULATE_FROM = "2026-02-02";
 
@@ -845,14 +672,11 @@ order.status = resolveOrderStatus(order);
             if (!dateToCheck) return false;
             return dateToCheck >= ACCUMULATE_FROM;
             
-    const packingWH = order.warehouses.find(w => w.base === "PACKING STATION");
-    if (packingWH && packingWH.packed) {
-        order.status = "completed";  // In-Packing
-    } else {
+    
         order.status = resolveOrderStatus(order); // الحالة الأصلية
-    }
+    
 });
-        
+    
 
         // ================= TODAY =================
         const CANCELED_START_DATE = "2026-02-02";
@@ -949,81 +773,106 @@ order.status = resolveOrderStatus(order);
         displayOrders(orders, "Distributed Orders");
     }
 
-    function renderWarehouseBreakdown(orders) {
-        const warehouseMap = {};
-        const grandTotal = { t: 0, c: 0, p: 0, d: 0 };
+  function renderWarehouseBreakdown(orders) {
 
-        orders.forEach(order => {
-            // الطلب يُحسب مرة واحدة  
-            grandTotal.t++;
+    const warehouseMap = {};
+    const grandTotal = { t: 0, c: 0, p: 0, d: 0 };
 
-            const isDistributed = order.status === "distributed";
+    orders.forEach(order => {
 
-            order.warehouses.forEach(w => {
-                if (!warehouseMap[w.base]) {
-                    warehouseMap[w.base] = { t: 0, c: 0, p: 0, d: 0 };
-                }
+        // الطلب يُحسب مرة واحدة
+        grandTotal.t++;
 
-                warehouseMap[w.base].t++;
+        const isDistributed = order.status === "distributed";
 
-                if (isDistributed) {
-                    warehouseMap[w.base].d++;
-                } else if (order.status === "completed") {
-                    warehouseMap[w.base].c++; // In-Packing  
-                } else {
-                    warehouseMap[w.base].p++; // Pending + Partial  
-                }
-            });
+        // لمنع تكرار نفس المستودع داخل نفس الطلب
+        const seenWH = new Set();
 
-            // grand totals  
-            if (isDistributed) {
-                grandTotal.d++;
-            } else if (order.status === "completed") {
-                grandTotal.c++;
-            } else {
-                grandTotal.p++;
+        order.warehouses.forEach(w => {
+
+            if (!w.base) return;
+
+            // 🔹 توحيد اسم المستودع
+            const base = w.base.trim().toLowerCase();
+
+            // 🔹 منع التكرار داخل نفس الطلب
+            if (seenWH.has(base)) return;
+            seenWH.add(base);
+
+            if (!warehouseMap[base]) {
+                warehouseMap[base] = { t: 0, c: 0, p: 0, d: 0 };
             }
+
+            warehouseMap[base].t++;
+
+            if (isDistributed) {
+                warehouseMap[base].d++;
+            }
+            else if (order.status === "completed") {
+                warehouseMap[base].c++; // In-Packing
+            }
+            else {
+                warehouseMap[base].p++; // Pending + Partial
+            }
+
         });
 
-        warehouseBreakdownTable.innerHTML = `  
-<table>  
-  <tr>  
-    <th>Warehouse</th>  
-    <th>Total</th>  
-    <th>In-Packing</th>  
-    <th>Pending</th>  
-    <th>Delivered</th>  
-  </tr>  
-  
-  ${Object.entries(warehouseMap).map(([wh, v]) => {
-            if (!wh || !v) return ""; // منع أي صف فارغ  
-            const safeWh = wh.replace(/'/g, "\\'"); // escape single quotes  
-            return `  
-<tr>  
-  <td>${wh.toUpperCase()}</td>  
-  <td><a href="#" onclick="showWarehouseOrders('${safeWh}','total')">${v.t}</a></td>  
-  <td><a href="#" onclick="showWarehouseOrders('${safeWh}','completed')">${v.c}</a></td>  
-  <td><a href="#" onclick="showWarehouseOrders('${safeWh}','pending')">${v.p}</a></td>  
-  <td><a href="#" onclick="showWarehouseOrders('${safeWh}','distributed')">${v.d}</a></td>  
-</tr>  
-`;
-        }).join("")}  
-  
-  <tr style="font-weight:bold;background:#020617;color:#22c55e">  
-    <td>TOTAL</td>  
-    <td>${grandTotal.t}</td>  
-    <td>${grandTotal.c}</td>  
-    <td>${grandTotal.p}</td>  
-    <td>${grandTotal.d}</td>  
-  </tr>  
-</table>  
-`;
-    }
+        // grand totals
+        if (isDistributed) {
+            grandTotal.d++;
+        }
+        else if (order.status === "completed") {
+            grandTotal.c++;
+        }
+        else {
+            grandTotal.p++;
+        }
 
+    });
+
+    warehouseBreakdownTable.innerHTML = `
+<table>
+<tr>
+<th>Warehouse</th>
+<th>Total</th>
+<th>In-Packing</th>
+<th>Pending</th>
+<th>Delivered</th>
+</tr>
+
+${Object.entries(warehouseMap).map(([wh, v]) => {
+
+    if (!wh || !v) return "";
+
+    const safeWh = wh.replace(/'/g, "\\'");
+
+    return `
+<tr>
+<td>${wh.toUpperCase()}</td>
+<td><a href="#" onclick="showWarehouseOrders('${safeWh}','total')">${v.t}</a></td>
+<td><a href="#" onclick="showWarehouseOrders('${safeWh}','completed')">${v.c}</a></td>
+<td><a href="#" onclick="showWarehouseOrders('${safeWh}','pending')">${v.p}</a></td>
+<td><a href="#" onclick="showWarehouseOrders('${safeWh}','distributed')">${v.d}</a></td>
+</tr>
+`;
+
+}).join("")}
+
+<tr style="font-weight:bold;background:#020617;color:#22c55e">
+<td>TOTAL</td>
+<td>${grandTotal.t}</td>
+<td>${grandTotal.c}</td>
+<td>${grandTotal.p}</td>
+<td>${grandTotal.d}</td>
+</tr>
+
+</table>
+`;
+}
 
     // MULTI-WAREHOUSE ORDERS  
     function renderMultiWHOrders(orders) {
-        const m = orders.filter(x => x.warehouseCount > 1);
+        const m = orders.filter(x => (x.warehouses?.length || 0) > 1);
         const completedOrders = m.filter(x => x.status === "completed");
         const distributedOrders = m.filter(x => x.status === "distributed");
         const pendingOrders = m.filter(x => x.status === "pending" || x.status === "partial")
@@ -1313,21 +1162,31 @@ ${pendingOrders.length}</a>
     }
     // SHOW WAREHOUSE ORDERS  
     function showWarehouseOrders(warehouse, type) {
-        let o = applyFilters();
 
-        if (warehouse !== 'all') {
-            o = o.filter(order =>
-                order.warehouses.some(w => w.base === warehouse)
-            );
-        }
+let o = applyFilters();
 
-        if (type === "completed") o = o.filter(x => x.status === "completed");
-        if (type === "pending") o = o.filter(x => x.status === "pending" || x.status === "partial");
-        if (type === "distributed") o = o.filter(x => x.status === "distributed");
-        if (type === "total") o = o; // all filtered orders  
+if (warehouse !== 'all') {
 
-        displayOrders(o, warehouse === 'all' ? 'All Warehouses' : `Warehouse: ${warehouse}`);
-    }
+o = o.filter(order =>
+order.warehouses.some(w =>
+w.base.trim().toLowerCase() === warehouse.trim().toLowerCase()
+)
+);
+
+}
+
+if (type === "completed")
+o = o.filter(x => x.status === "completed");
+
+if (type === "pending")
+o = o.filter(x => x.status === "pending" || x.status === "partial");
+
+if (type === "distributed")
+o = o.filter(x => x.status === "distributed");
+
+displayOrders(o, `Warehouse: ${warehouse}`);
+
+}
 
     // SHOW MULTI/SINGLE-WAREHOUSE ORDERS  
     function showMultiWHOrders(type) {
@@ -1350,6 +1209,8 @@ ${pendingOrders.length}</a>
     }
 
     function displayOrders(orders, title = "Order Details") {
+
+    
         orders.sort((a, b) => {
 
             function getFullDate(order) {
@@ -1498,7 +1359,6 @@ ${pendingOrders.length}</a>
     const toggleToDateBtn = document.getElementById("toggleToDate");
     const dateToInput = document.getElementById("dateTo");
 
-    //   
 
     // CLOSE MODAL  
     function closeOrderDetails() { orderDetails.classList.add("hidden"); }
@@ -1602,84 +1462,14 @@ ${pendingOrders.length}</a>
         const packed = /pack/.test(raw);
 
         const base = raw
-            .replace(/pack/gi, "")
-            .replace(/wh/gi, "")
-            .replace(/[-_]+/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
-
+    .replace(/pack/gi, "")
+    .replace(/wh/gi, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
         return { base, packed };
     }
-    // SHOW WAREHOUSES PAGE  
-    function showWarehouses() { }
-    let currentInterval = 3000; // يبدأ 30 ثانية  
-    // ==============================  
-    // 🔥 ENTERPRISE LIVE ENGINE  
-    // ==============================  
-
-    const FAST_INTERVAL = 2000;   // نشط  
-    const SLOW_INTERVAL = 3000;  // خمول  
-
-    let liveTimer = null;
-    let idleTimer = null;
-    let isIdle = false;
-
-    function startLiveDashboard() {
-        stopLiveDashboard();
-
-        runLiveCycle(FAST_INTERVAL);
-
-        // كشف الخمول  
-        resetIdleTimer();
-        ["mousemove", "keydown", "click", "touchstart"].forEach(evt =>
-            document.addEventListener(evt, resetIdleTimer)
-        );
-
-        // عند الرجوع للتاب  
-        document.addEventListener("visibilitychange", () => {
-            if (!document.hidden) {
-                loadData({ force: true, silent: true });
-            }
-        });
-    }
-
-    function stopLiveDashboard() {
-        if (liveTimer) clearInterval(liveTimer);
-        if (idleTimer) clearTimeout(idleTimer);
-    }
-
-    function runLiveCycle(interval) {
-        if (liveTimer) clearInterval(liveTimer);
-
-        liveTimer = setInterval(async () => {
-            if (isLoading) return;
-
-            try {
-                await loadData({ silent: true });
-
-            } catch (e) {
-                console.error("Live error:", e);
-            }
-        }, interval);
-    }
-
-    function resetIdleTimer() {
-        isIdle = false;
-        runLiveCycle(FAST_INTERVAL);
-
-        if (idleTimer) clearTimeout(idleTimer);
-
-        idleTimer = setTimeout(() => {
-            isIdle = true;
-            runLiveCycle(SLOW_INTERVAL);
-        }, 60000); // بعد دقيقة خمول  
-    }
-
-    //function stopAutoRefresh() {  
-    // clearInterval(refreshTimer);  
-    //  refreshTimer = null;  
-    //}  
-    // SIGN OUT  
     function signOut() {
         clearInterval(refreshTimer);
         refreshTimer = null;
@@ -1691,34 +1481,7 @@ ${pendingOrders.length}</a>
         location.reload();
         dashboard.classList.add("hidden");
         loginContainer.style.display = "flex";
-        stopLiveDashboard()
-    }
-    // REFRESH PAGE ON ENTER  
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            const tag = document.activeElement.tagName.toLowerCase();
-            if (tag === "input" || tag === "textarea") return;
-
-            e.preventDefault();
-            loadData({ force: true });
-        }
-    });
-    function showToast(message) {
-        const toast = document.getElementById("toast");
-        const sound = document.getElementById("toastSound");
-
-        document.getElementById("toastText").textContent = message;
-
-        toast.style.opacity = "1";
-        toast.style.transform = "translateY(0)";
-
-        sound.currentTime = 0;
-        sound.play().catch(() => { });
-
-        setTimeout(() => {
-            toast.style.opacity = "0";
-            toast.style.transform = "translateY(20px)";
-        }, 4000);
+        
     }
     document.addEventListener("mouseover", function (e) {
 
@@ -1758,36 +1521,38 @@ ${pendingOrders.length}</a>
             document.getElementById("tooltip").classList.add("hidden");
         }
     });
-
+let recentOrders = [];
 
     // =============================
     // SHOW TAB
     // =============================
-    function showNewOrderTab() {
+    function showNewOrderTab() {  
 
-    document.querySelectorAll(".main > div").forEach(div => {
-        if (div.id !== "newOrderTab") div.classList.add("hidden");
-    });
+document.querySelectorAll(".main > div").forEach(div => {  
+    if (div.id !== "newOrderTab") div.classList.add("hidden");  
+});  
 
-    document.getElementById("newOrderTab").classList.remove("hidden");
+document.getElementById("newOrderTab").classList.remove("hidden");  
 
-    const warehouseInput = document.getElementById("newWarehouseName");
-    const userWarehouse = localStorage.getItem("currentWarehouse");
+listenToOrders(); // 🔥 تحديث الطلبات دائماً
 
-    if (userWarehouse) {
+const warehouseInput = document.getElementById("newWarehouseName");  
+const userWarehouse = localStorage.getItem("currentWarehouse");  
 
-        warehouseInput.value = userWarehouse;
+if (userWarehouse) {  
 
-        // 🔥 فقط packing يستطيع التعديل
-        if (userWarehouse === "Packing Station") {
-            warehouseInput.readOnly = false;
-        } else {
-            warehouseInput.readOnly = true;
-        }
+    warehouseInput.value = userWarehouse;  
 
-    }
+    if (userWarehouse === "Packing Station") {  
+        warehouseInput.readOnly = false;  
+    } else {  
+        warehouseInput.readOnly = true;  
+    }  
 
-    setTodayForNewOrder();
+}  
+
+setTodayForNewOrder();
+
 }
     function setTodayForNewOrder() {
         const today = new Date().toISOString().slice(0, 10);
@@ -1805,88 +1570,212 @@ ${pendingOrders.length}</a>
     }
 
     // =============================
-    // SAVE NEW ORDER
 function saveNewOrder() {
+console.log(or);
+const merged = mergeOrdersByNumber(orders);
+    const orderNo = document
+        .getElementById("newOrderNumber")
+        .value.trim()
+        .toUpperCase();
 
-    const orderNo = document.getElementById("newOrderNumber").value.trim();
-    const warehouse = document.getElementById("newWarehouseName").value.trim();
-    const date = document.getElementById("newOrderDate").value;
+    const warehouseInput = document
+        .getElementById("newWarehouseName")
+        .value.trim();
 
-    if (!orderNo || !warehouse || !date) {
+    const date = document
+        .getElementById("newOrderDate")
+        .value;
+
+    if (!orderNo || !warehouseInput || !date) {
         showToast("⚠️ Please fill all fields");
         return;
     }
 
-    const now = new Date();
+    const normalized = normalizeWarehouse(warehouseInput);
+    const warehouse = normalized.base.trim().toUpperCase();
 
-    const formattedDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
-    const formattedTime = now.toLocaleTimeString(); // الوقت المحلي
-
-    const currentWarehouse = localStorage.getItem("currentWarehouse");
-
-    const status = currentWarehouse === "Packing Station"
-        ? "completed"
-        : "pending";
-
-    const newOrder = {
-        orderNo: orderNo.toUpperCase(),
-        date: formattedDate,
-        time: formattedTime,
-        createdAt: now.toISOString(),
-        warehouses: [{
-            base: warehouse,
-            packed: false,
-            receivedTime: formattedDate
-        }],
-        warehouseCount: 1,
-        status: status,   // 🔥 هنا التغيير
-        comment: ""
-    };
-
-    // 🔥 إرسال إلى Firebase
     const ordersRef = ref(db, "orders");
-    push(ordersRef, newOrder)
-      .then(() => {
-          console.log("Saved to Firebase");
-      })
-      .catch(err => {
-          console.error("Firebase Error:", err);
-      });
 
-    // 🔥 إضافة الطلب إلى جميع الطلبات المحلية
-    allOrders.push(newOrder);
+    get(ordersRef).then(snapshot => {
 
-    // 🔥 إضافة الطلب إلى recentOrders المحلي وعرضه مباشرة
-    if (!window.recentOrders) window.recentOrders = [];
-    window.recentOrders.unshift(newOrder); // تضيف في البداية
-    renderRecentOrders(); // تحديث عرض Recent Orders
+        const data = snapshot.val();
+        let existingKey = null;
 
-    updateDashboard();
+        if (data) {
+            Object.entries(data).forEach(([key, order]) => {
 
-    showToast(`✅ Order ${orderNo} added successfully`);
+    if (order.orderNo?.trim().toUpperCase() === orderNo.trim().toUpperCase()) {
+        existingKey = key;
+    }
 
-    showOrderPreview(newOrder);
+});
+        }
 
-    clearNewOrderForm();
+        // ============================
+        // ORDER EXISTS
+        // ============================
+        if (existingKey) {
+
+            const order = data[existingKey];
+
+            const newWarehouseNormalized = warehouse.trim().toUpperCase();
+
+            const existingWarehouses = (order.warehouses || []).map(w =>
+    (w.base || "").trim().toUpperCase()
+);
+            if (existingWarehouses.includes(newWarehouseNormalized)) {
+    showToast("⚠️ This warehouse already exists in this order");
+    return;
 }
 
-// 🔥 دالة عرض الطلبات الأخيرة
-function renderRecentOrders() {
-    const container = document.getElementById('newOrdersList');
-    if (!container) return;
+            const newWarehouse = {
+                base: warehouse,
+                packed: false,
+                receivedTime: new Date().toISOString()
+            };
 
-    container.innerHTML = '';
-    window.recentOrders.forEach(order => {
-        const div = document.createElement('div');
-        div.classList.add('order-card');
-        div.innerHTML = `
-            <strong>#${order.orderNo}</strong> - ${order.warehouses[0].base} - ${order.date} ${order.time}
-        `;
-        container.appendChild(div);
+            const updatedWarehouses = [
+                ...(order.warehouses || []),
+                newWarehouse
+            ];
+
+            update(ref(db, "orders/" + existingKey), {
+                warehouses: updatedWarehouses
+            });
+
+            showToast("✅ Warehouse added to existing order");
+        }
+
+        // ============================
+        // NEW ORDER
+        // ============================
+        else {
+
+            const newOrder = {
+
+                orderNo: orderNo,
+                date: date,
+                createdAt: new Date().toISOString(),
+
+                warehouses: [
+                    {
+                        base: warehouse,
+                        packed: false,
+                        receivedTime: new Date().toISOString()
+                    }
+                ],
+
+                status: "pending"
+            };
+
+            push(ordersRef, newOrder);
+
+            showToast("✅ Order created");
+        }
+
+        clearNewOrderForm();
+
+    }).catch(err => {
+
+        console.error(err);
+        showToast("❌ Error saving order");
+
     });
 
-    // إظهار قسم Recent Orders إذا كان مخفي
-    document.getElementById('newOrderPreview').classList.remove('hidden');
+}
+// 🔥 
+function buildRecentOrders(){
+
+    if(!allOrders || !allOrders.length){
+        recentOrders = [];
+        return;
+    }
+
+    // ترتيب حسب وقت الإنشاء
+    const sorted = allOrders
+        .slice()
+        .sort((a,b)=>{
+
+            const aDate = new Date(a.createdAt || a.date);
+            const bDate = new Date(b.createdAt || b.date);
+
+            return bDate - aDate; // الأحدث أولاً
+        });
+
+    // أخذ آخر 10 طلبات فقط
+    recentOrders = sorted.slice(0,10);
+}
+
+
+function renderRecentOrders(){
+allOrders.forEach(order=>{
+    order.warehouseCount = order.warehouses.length;
+});
+    const container = document.getElementById("newOrdersList");
+    if(!container) return;
+
+    container.innerHTML = "";
+
+    recentOrders.forEach(order=>{
+
+        const card = document.createElement("div");
+
+        card.style.cssText = `
+            background:#0f172a;
+            border:1px solid #1f2937;
+            padding:14px;
+            border-radius:12px;
+            margin-bottom:8px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+        `;
+
+        const statusColor =
+            order.status === "distributed" ? "#22c55e" :
+            order.status === "completed" ? "#22c55e" :
+            order.status === "partial" ? "#f59e0b" :
+            order.status === "canceled" ? "#ef4444" :
+            "#f59e0b";
+
+        card.innerHTML = `
+            <div>
+                <div style="font-weight:600">
+                    ${order.orderNo}
+                </div>
+
+                <div style="font-size:12px;opacity:.7;margin-top:3px">
+                    ${order.warehouses.map(w=>w.base).join(" | ")}
+                </div>
+
+               <div style="font-size:11px;opacity:.6;margin-top:2px">
+    ${
+        order.createdAt
+        ? new Date(order.createdAt).toLocaleDateString() +
+          " • " +
+          new Date(order.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+        : order.date
+    }
+</div>
+            </div>
+
+            <span style="
+                background:${statusColor};
+                padding:5px 12px;
+                border-radius:20px;
+                font-size:11px;
+                font-weight:600;
+                color:black;
+            ">
+                ${order.status}
+            </span>
+        `;
+
+        container.appendChild(card);
+    });
+
+    document.getElementById("newOrderPreview")
+        .classList.remove("hidden");
 }
     const newOrderInput = document.getElementById("newOrderNumber");
 
@@ -1912,6 +1801,7 @@ function renderRecentOrders() {
 
         }
     });
+
 function markInPacking(orderNo){
 
 const ordersRef = ref(db,"orders");
@@ -1954,27 +1844,39 @@ packingTime:new Date().toISOString()
 
             });
         });
-function resolveOrderStatus(order){
+function resolveOrderStatus(order) {
 
-// 🔴 canceled
-if(canceledOrdersSet.has(order.orderNo)){
-return "canceled";
+    // 1️⃣ Canceled
+    if (canceledOrdersSet.has(order.orderNo)) {
+        return "canceled";
+    }
+
+    // 2️⃣ Distributed
+    if (distributedOrdersMap[order.orderNo]) {
+        return "distributed";
+    }
+
+    const warehouseCount = order.warehouses.length;
+
+    const packedCount = order.warehouses.filter(w => w.packed).length;
+
+    // 3️⃣ Pending
+    if (packedCount === 0) {
+        return "pending";
+    }
+
+    // 4️⃣ Partial
+    if (packedCount < warehouseCount) {
+        return "partial";
+    }
+
+    // 5️⃣ In-Packing (كل المستودعات انتهت)
+    return "completed";
 }
-
-// 🚚 distributed
-if(distributedOrdersMap[order.orderNo]){
-return "distributed";
-}
-
-// 📦 in packing
-if(order.status === "in-packing"){
-return "completed"; // لأن الداشبورد يعرض completed = In-Packing
-}
-
-// ⏳ pending
-return "pending";
-
-}
+// مثال: تحديث كل الطلبات قبل عرضها
+allOrders.forEach(order => {
+    order.status = resolveOrderStatus(order);
+});
     //const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7O-KhP-qVecKdapMORuIlpQWaPzRFWAk4GRImEQAGAWM4Kk72RdLjgTNue95dEUp3JA/exec";
 function showOrderPreview(order) {
 
@@ -1991,7 +1893,8 @@ function showOrderPreview(order) {
         margin-bottom:12px;
         animation:fadeIn .3s ease;
     `;
-
+const statusText = order.status === "in-packing" ? "In-Packing" : "Pending";
+const statusColor = order.status === "in-packing" ? "#22c55e" : "#f59e0b";
     orderCard.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center">
 
@@ -2027,14 +1930,14 @@ function showOrderPreview(order) {
             </div>
 
             <span style="
-                background:#f59e0b;
-                padding:6px 14px;
-                border-radius:20px;
-                font-size:11px;
-                font-weight:600;
-            ">
-                Pending
-            </span>
+    background:${statusColor};
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:11px;
+    font-weight:600;
+">
+    ${statusText}
+</span>
         </div>
 
         <div style="margin-top:12px">
@@ -2120,25 +2023,107 @@ function clearNewOrderForm() {
         // أعد ضبط التاريخ لليوم
         setTodayForNewOrder();
     }
-    // =============================
-    // LOAD SECURE ORDERS
-    // =============================
-function listenToOrders() {
+function mergeOrdersByNumber(orders) {
 
-    const ordersRef = ref(db, "orders");
+    const map = {};
 
-    onValue(ordersRef, (snapshot) => {
+    orders.forEach(order => {
+
+        const orderNo = (order.orderNo || "").trim().toUpperCase();
+
+        if (!map[orderNo]) {
+            map[orderNo] = {
+                ...order,
+                warehouses: []
+            };
+        }
+
+        (order.warehouses || []).forEach(w => {
+
+            const base = (w.base || "").trim().toUpperCase();
+
+            // نتحقق فقط من التكرار الحقيقي
+            const exists = map[orderNo].warehouses.some(x =>
+                (x.base || "").trim().toUpperCase() === base
+            );
+
+            if (!exists) {
+                map[orderNo].warehouses.push(w);
+            }
+
+        });
+
+    });
+
+    return Object.values(map);
+
+}
+function listenToOrders(){
+
+    const ordersRef = ref(db,"orders");
+
+    onValue(ordersRef,(snapshot)=>{
 
         const data = snapshot.val();
-        if (!data) return;
 
+        if(!data){
+            allOrders = [];
+            recentOrders = [];
+            renderRecentOrders();
+            updateDashboard();
+            return;
+        }
+
+        // تحويل Firebase object الى array
         const firebaseOrders = Object.values(data);
 
-        allOrders = firebaseOrders;
+        const currentWarehouse = localStorage.getItem("currentWarehouse");
+        const role = localStorage.getItem("userRole");
+
+        // 🔥 دمج الطلبات التي لها نفس الرقم
+        let mergedOrders = mergeOrdersByNumber(firebaseOrders);
+
+        // 🔥 المدير يرى كل الطلبات
+        if(role === "manager"){
+
+            allOrders = mergedOrders;
+
+        }else{
+
+            const normalizedUserWH = currentWarehouse.trim().toUpperCase();
+
+            allOrders = mergedOrders.filter(order =>
+                order.warehouses?.some(w =>
+                    w.base?.trim().toUpperCase() === normalizedUserWH
+                )
+            );
+
+        }
+
+        // 🔥 تحديث الحالة وعدد المستودعات
+        allOrders.forEach(order=>{
+            order.status = resolveOrderStatus(order);
+            order.warehouseCount = order.warehouses ? order.warehouses.length : 0;
+        });
+
+        // 🔥 بناء recent orders
+        buildRecentOrders();
+
+        // 🔥 عرضها
+        renderRecentOrders();
 
         updateDashboard();
 
     });
+
+}
+function getOrderWarehouse(orderNo) {
+    const order = allOrders.find(o => o.orderNo.toUpperCase() === orderNo.toUpperCase());
+    if (!order) return null;
+
+    // إذا الطلب من أكثر من مستودع، نرجع أول مستودع غير PACKING
+    const originalWH = order.warehouses.find(w => w.base.toUpperCase() !== "PACKING STATION");
+    return originalWH ? originalWH.base : "";
 }
 
     function showDashboardHome() {
@@ -2228,4 +2213,115 @@ packingTime:new Date().toISOString()
 
 },{onlyOnce:true});
 
+}
+
+
+function markWarehousePacking(orderNo, warehouseName){
+
+const ordersRef = ref(db,"orders");
+
+onValue(ordersRef,(snapshot)=>{
+
+const data = snapshot.val();
+
+Object.entries(data).forEach(([key,order])=>{
+
+if(order.orderNo === orderNo){
+
+const updatedWarehouses = order.warehouses.map(w=>{
+
+if(w.base.toLowerCase() === warehouseName.toLowerCase()){
+
+return {
+...w,
+packed:true,
+packingTime:new Date().toISOString()
+};
+
+}
+
+return w;
+
+});
+
+update(ref(db,"orders/"+key),{
+warehouses:updatedWarehouses
+});
+
+}
+
+});
+
+},{onlyOnce:true});
+
+}
+
+function showPackingSelection(order){
+
+const modal = document.getElementById("orderDetails");
+
+const html = `
+<h3>Select Warehouse for Packing</h3>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+
+${order.warehouses.map(w=>{
+
+return `
+<button onclick="markWarehousePacking('${order.orderNo}','${w.base}')"
+style="
+padding:10px 16px;
+background:#22c55e;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-weight:600;
+">
+${w.base.toUpperCase()}
+</button>
+`;
+
+}).join("")}
+
+</div>
+`;
+
+document.getElementById("orderList").innerHTML = html;
+
+modal.classList.remove("hidden");
+
+}
+function openPackingOrder(order){
+
+if(order.warehouses.length === 1){
+
+markWarehousePacking(order.orderNo,order.warehouses[0].base);
+
+}
+
+else{
+
+showPackingSelection(order);
+
+}
+
+}
+
+function log(msg) {
+    const el = document.getElementById("debug") || (() => {
+        const d = document.createElement("div");
+        d.id = "debug";
+        d.style.position = "fixed";
+        d.style.bottom = "0";
+        d.style.width = "100%";
+        d.style.height = "150px";
+        d.style.background = "#000";
+        d.style.color = "#0f0";
+        d.style.overflow = "auto";
+        d.style.fontSize = "12px";
+        d.style.padding = "5px";
+        document.body.appendChild(d);
+        return d;
+    })();
+    el.innerHTML += msg + "<br>";
 }
