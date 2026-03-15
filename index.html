@@ -145,7 +145,7 @@ background:#22c55e;
                 <div class="new-order-grid">
 
                     <div class="input-group">
-                        <i class="fa-solid fa-hashtag"></i>
+                        <i id="hashtag"class="fa-solid fa-hashtag"></i>
                         <input type="text" id="newOrderNumber" placeholder="Order Number">
                     </div>
 
@@ -315,6 +315,38 @@ background:#22c55e;
         <!-- NEW ORDER TAB -->
 
     </div>
+<div id="editOrderModal" class="hidden" onclick="closeEditIfOutside(event)">
+
+<div class="edit-order-card">
+
+<h3>
+<i class="fa-solid fa-pen-to-square"></i>
+Edit Order
+</h3>
+
+<input id="editOrderNumber" placeholder="Order Number">
+
+<textarea id="editOrderComment" placeholder="Add comment"></textarea>
+
+<div class="edit-order-buttons">
+
+<button class="save-edit-btn" onclick="saveEditedOrder()">
+<i class="fa-solid fa-floppy-disk"></i> Save
+</button>
+
+<button class="cancel-edit-btn" onclick="closeEditModal()">
+Cancel
+</button>
+
+</div>
+
+<button class="delete-edit-btn" onclick="deleteOrder()">
+<i class="fa-solid fa-trash"></i> Delete Order
+</button>
+
+</div>
+
+</div>
 
  <script type="module">
 
