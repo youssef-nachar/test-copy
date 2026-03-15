@@ -32,6 +32,33 @@ orderDetails.addEventListener("click", (e) => {
     if (e.target === orderDetails) {
         orderDetails.classList.add("hidden");
     }
+    const warehouse = localStorage.getItem("currentWarehouse");
+
+let input = null;
+
+// 🔵 Packing → البحث
+if(warehouse === "Packing Station"){
+    input = document.getElementById("newOrderSearch");
+}
+
+// 🟢 باقي المستخدمين → إدخال الطلب
+else{
+    input = document.getElementById("newOrderNumber");
+}
+
+if(!input) return;
+
+// focus أولي
+setTimeout(()=>{
+    input.focus();
+},300);
+
+// إذا خرج المؤشر يرجع
+input.addEventListener("blur",()=>{
+if(!document.getElementById("editOrderModal").classList.contains("hidden")) return;
+
+setTimeout(()=>input.focus(),100);
+});
 });
     const loggedIn = localStorage.getItem("isLoggedIn");
     const role = localStorage.getItem("userRole");
@@ -1548,12 +1575,55 @@ Received
         }
     });
 let recentOrders = [];
+function forceInputFocus(){
 
+const warehouse = localStorage.getItem("currentWarehouse");
+
+const input = warehouse === "Packing Station"
+? document.getElementById("newOrderSearch")
+: document.getElementById("newOrderNumber");
+
+if(!input) return;
+
+setTimeout(()=>{
+input.focus();
+},200);
+
+// إذا خرج المؤشر يرجع
+input.addEventListener("blur",()=>{
+
+if(!document.getElementById("editOrderModal").classList.contains("hidden")) return;
+
+setTimeout(()=>input.focus(),100);
+
+});
+
+}
     // =============================
     // SHOW TAB
     // =============================
     function showNewOrderTab() {  
+const currentWarehouse = localStorage.getItem("currentWarehouse");
 
+if(currentWarehouse === "Packing Station"){
+    const searchInput = document.getElementById("newOrderSearch");
+
+    setTimeout(()=>{
+        searchInput.focus();
+    },200);
+
+    searchInput.addEventListener("blur", () => {
+
+if(!document.getElementById("editOrderModal").classList.contains("hidden")) return;
+
+setTimeout(()=>searchInput.focus(),100);
+
+});
+    
+document.getElementById("hashtag").style.display="none";
+document.getElementById("newOrderNumber").style.display="none";
+
+}
 document.querySelectorAll(".main > div").forEach(div => {  
     if (div.id !== "newOrderTab") div.classList.add("hidden");  
 });  
@@ -1579,6 +1649,7 @@ if (userWarehouse) {
 
 setTodayForNewOrder();
 
+forceInputFocus()
 }
     function setTodayForNewOrder() {
         const today = new Date().toISOString().slice(0, 10);
@@ -1741,7 +1812,33 @@ function renderRecentOrders() {
                     <div style="font-size:11px;opacity:.6">
                         ${order.createdAt ? new Date(order.createdAt).toLocaleString() : order.date}
                     </div>
+        ${order.comment ? `
+<div style="
+font-size:12px;
+margin-top:4px;
+color:#38bdf8;
+font-weight:500;
+">
+💬 ${order.comment}
+</div>
+` : ""}
+
                 </div>
+        <div style:"display:flex;gap:6px">
+        <button onclick="openEditOrder('${order.orderNo}')"
+style="
+background:#3b82f6;
+border:none;
+padding:5px 10px;
+border-radius:6px;
+cursor:pointer;
+font-size:11px;
+font-weight:600;
+color:white;
+">
+Edit
+</button>
+        
                 <span style="
                     background:${statusColor};
                     padding:5px 12px;
@@ -1752,6 +1849,7 @@ function renderRecentOrders() {
                 ">
                     ${order.status}
                 </span>
+        </div>
             </div>
         `;
         container.appendChild(card);
@@ -1761,29 +1859,124 @@ function renderRecentOrders() {
 }
 const newOrderInput = document.getElementById("newOrderNumber");
 
-    newOrderInput.addEventListener("input", function () {
+newOrderInput.addEventListener("input", function () {
 
-        const value = this.value.trim();
+    const value = this.value.trim();
+    const pattern = /^#m\d{5}$/i;
 
-        // يتحقق من الصيغة: #m + 5 أرقام
-        const pattern = /^#m\d{5}$/i;
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-        if (pattern.test(value)) {
+    // 🔵 إذا المستخدم Packing Station
+    if(currentWarehouse === "Packing Station"){
 
-            // منع التكرار إذا نفس الرقم
-            if (this.dataset.saved === value) return;
+        // يعمل مثل search فقط
+        updateSearch();
 
-            this.dataset.saved = value;
+        // يبقي المؤشر داخل input
+        setTimeout(()=>{
+            this.focus();
+        },0);
 
-            // تنفيذ الحفظ تلقائياً
-            saveNewOrder();
+        return;
+    }
 
-            // تفريغ الحقل بعد الحفظ
-            this.value = "";
+    // باقي المستخدمين يحفظ الطلب
+    if (pattern.test(value)) {
 
-        }
-    });
+        if (this.dataset.saved === value) return;
 
+        this.dataset.saved = value;
+
+        saveNewOrder();
+
+        this.value = "";
+
+    }
+
+});
+function openEditOrder(orderNo){
+
+const order = allOrders.find(o => o.orderNo === orderNo);
+if(!order) return;
+
+document.getElementById("editOrderNumber").value = order.orderNo;
+document.getElementById("editOrderComment").value = order.comment || "";
+
+document.getElementById("editOrderModal").classList.remove("hidden");
+
+window.editingOrderNo = orderNo;
+setTimeout(()=>{
+document.getElementById("editOrderNumber").focus();
+},100);
+}
+function closeEditModal(){
+document.getElementById("editOrderModal").classList.add("hidden");
+}
+function saveEditedOrder(){
+
+const newOrderNo = document.getElementById("editOrderNumber").value.trim();
+const comment = document.getElementById("editOrderComment").value.trim();
+
+const ordersRef = ref(db,"orders");
+
+get(ordersRef).then(snapshot=>{
+
+snapshot.forEach(child=>{
+
+const data = child.val();
+
+if(data.orderNo === window.editingOrderNo){
+
+update(ref(db,"orders/"+child.key),{
+orderNo:newOrderNo,
+comment:comment
+});
+
+}
+
+});
+
+});
+
+closeEditModal();
+
+showToast("Order updated");
+
+}
+function closeEditIfOutside(e){
+
+if(e.target.id === "editOrderModal"){
+closeEditModal();
+}
+
+}
+function deleteOrder(){
+
+if(!confirm("Delete this order ?")) return;
+
+const ordersRef = ref(db,"orders");
+
+get(ordersRef).then(snapshot=>{
+
+snapshot.forEach(child=>{
+
+const data = child.val();
+
+if(data.orderNo === window.editingOrderNo){
+
+remove(ref(db,"orders/"+child.key));
+
+}
+
+});
+
+});
+
+closeEditModal();
+
+showToast("Order deleted");
+
+}
 function markInPacking(orderNo){
 
 const ordersRef = ref(db,"orders");
@@ -2055,10 +2248,10 @@ function listenToOrders(){
             updateDashboard();
             return;
         }
-
+let allOrdersMap = {};
         // تحويل Firebase object الى array
-        const firebaseOrders = Object.values(data);
-
+        allOrdersMap = data;
+const firebaseOrders = Object.values(data);
         const currentWarehouse = localStorage.getItem("currentWarehouse");
         const role = localStorage.getItem("userRole");
 
@@ -2308,29 +2501,31 @@ function log(msg) {
     })();
     el.innerHTML += msg + "<br>";
 }
+let receivingOrders = new Set();
 
 function receiveInPacking(orderNo){
 
-const ordersRef = ref(db,"orders");
+if(receivingOrders.has(orderNo)) return;
 
-onValue(ordersRef,(snapshot)=>{
+receivingOrders.add(orderNo);
 
-const data = snapshot.val();
+const orderEntry = Object.entries(allOrdersMap)
+.find(([key,order]) => order.orderNo === orderNo);
 
-Object.entries(data).forEach(([key,order])=>{
+if(!orderEntry){
+receivingOrders.delete(orderNo);
+return;
+}
 
-if(order.orderNo === orderNo){
+const [key] = orderEntry;
 
 update(ref(db,"orders/"+key),{
 status:"completed",
 packingReceivedTime:new Date().toISOString()
+})
+.finally(()=>{
+receivingOrders.delete(orderNo);
 });
-
-}
-
-});
-
-},{onlyOnce:true});
 
 }
 function clearAllOrders(){
