@@ -54,8 +54,7 @@
             <div class="menu-item">
                 <a href="#" onclick="toggleMenu('warehousesMenu')">
 
-                    <a href="#" onclick="toggleMenu('warehousesMenu')">
-                        <a href="./p&c.html"><i class="fa-solid fa-boxes-stacked"></i> Warehouses</a>
+                   <a href="./p&c.html"><i class="fa-solid fa-boxes-stacked"></i> Warehouses</a>
 
             </div>
             <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
@@ -159,7 +158,7 @@ background:#22c55e;
                         <input type="date" id="newOrderDate">
                     </div>
 
-                    <button onclick="saveNewOrder()" class="save-order-btn">
+                    <button id="save" onclick="saveNewOrder()" class="save-order-btn">
                         <i class="fa-solid fa-floppy-disk"></i>
                         Save Order
                     </button>
@@ -347,7 +346,46 @@ Cancel
 </div>
 
 </div>
+<div id="historyModal" class="hidden" style="
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.7);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:9999;
+">
 
+<div style="
+background:#020617;
+padding:20px;
+border-radius:12px;
+width:90%;
+max-width:500px;
+max-height:80%;
+overflow-y:auto;
+border:1px solid #1f2937;
+">
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<h3>Order History</h3>
+<button onclick="closeHistoryModal()" style="
+background:#ef4444;
+border:none;
+padding:5px 10px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+">X</button>
+</div>
+
+<div id="historyContent"></div>
+
+</div>
+</div>
  <script type="module">
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -384,4 +422,4 @@ window.remove = remove;
 
 </body>
 
-    </html>
+                    </html>
