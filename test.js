@@ -1619,7 +1619,7 @@ if(!document.getElementById("editOrderModal").classList.contains("hidden")) retu
 setTimeout(()=>searchInput.focus(),100);
 
 });
-    
+    document.getElementById("save").style.display="none";
 document.getElementById("hashtag").style.display="none";
 document.getElementById("newOrderNumber").style.display="none";
 
@@ -1729,7 +1729,15 @@ orders[newKey] = {
 orderNo:orderNo,
 date:date,
 createdAt:new Date().toISOString(),
-warehouses:[
+history:[
+        {
+            action:"created",
+            date:new Date().toISOString(),
+            by: localStorage.getItem("currentWarehouse")
+        }
+    ],
+    
+    warehouses:[
 {
 base:warehouseInput,
 packed:false,
@@ -1772,22 +1780,27 @@ function buildRecentOrders(){
     recentOrders = sorted.slice(0,10);
 }
 
-
 function renderRecentOrders() {
+
+    const role = localStorage.getItem("userRole");
     const container = document.getElementById("newOrdersList");
     if (!container) return;
+
     container.innerHTML = "";
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
     recentOrders.forEach(order => {
+
         const card = document.createElement("div");
+
         card.style.cssText = `
-            background:#0f172a;
+            background:#020617;
             border:1px solid #1f2937;
             padding:14px;
-            border-radius:12px;
-            margin-bottom:8px;
+            border-radius:14px;
+            margin-bottom:10px;
+            transition:.2s;
         `;
 
         const statusColor = order.status === "distributed" ? "#22c55e" :
@@ -1796,62 +1809,153 @@ function renderRecentOrders() {
                             order.status === "canceled" ? "#ef4444" :
                             "#f59e0b";
 
-        // عرض كل مستودع مع زر Receive إذا المستخدم في Packing Station ولم يتم التعبئة
-        const warehousesHTML = order.warehouses.map(w => {
-            const isPacking = currentWarehouse === "Packing Station" && !w.packed;
-            const btn = isPacking ? `<button onclick="markWarehousePacking('${order.orderNo}','${w.base}')"
-                style="margin-left:6px;background:#22c55e;border:none;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Receive</button>` : "";
-            return `<span style="margin-right:6px">${w.base.toUpperCase()} ${btn}</span>`;
-        }).join("");
-
         card.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                    <div style="font-weight:600;margin-bottom:6px">${order.orderNo}</div>
-                    <div style="font-size:12px;opacity:.7;margin-bottom:4px">${warehousesHTML}</div>
-                    <div style="font-size:11px;opacity:.6">
-                        ${order.createdAt ? new Date(order.createdAt).toLocaleString() : order.date}
-                    </div>
-        ${order.comment ? `
-<div style="
-font-size:12px;
-margin-top:4px;
-color:#38bdf8;
-font-weight:500;
-">
-💬 ${order.comment}
-</div>
-` : ""}
+        <div style="display:flex;flex-direction:column;gap:10px;">
 
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                
+                <div style="display:flex;flex-direction:column">
+                    <span style="font-weight:700;font-size:15px;letter-spacing:.5px">
+                        ${order.orderNo}
+                    </span>
+                    <span style="font-size:11px;opacity:.5">
+                        ${order.createdAt ? new Date(order.createdAt).toLocaleString() : order.date}
+                    </span>
                 </div>
-        <div style:"display:flex;gap:6px">
-        <button onclick="openEditOrder('${order.orderNo}')"
-style="
-background:#3b82f6;
-border:none;
-padding:5px 10px;
-border-radius:6px;
-cursor:pointer;
-font-size:11px;
-font-weight:600;
-color:white;
-">
-Edit
-</button>
-        
-                <span style="
-                    background:${statusColor};
-                    padding:5px 12px;
-                    border-radius:20px;
-                    font-size:11px;
-                    font-weight:600;
-                    color:black;
-                ">
-                    ${order.status}
-                </span>
-        </div>
+
+             <div style="display:flex;align-items:center;gap:6px">
+
+    ${role === "manager" ? `
+    <button onclick="showOrderHistory('${order.orderNo}')"
+    style="
+        background:#0ea5e9;
+        border:none;
+        padding:5px 10px;
+        border-radius:6px;
+        cursor:pointer;
+        font-size:11px;
+        font-weight:600;
+        color:white;
+    ">
+        Info
+    </button>
+    ` : ""}
+
+    <button onclick="openEditOrder('${order.orderNo}')"
+    style="
+        background:linear-gradient(135deg,#3b82f6,#2563eb);
+        border:none;
+        padding:5px 10px;
+        border-radius:6px;
+        cursor:pointer;
+        font-size:11px;
+        font-weight:600;
+        color:white;
+        box-shadow:0 0 8px #3b82f666;
+    ">
+        Edit
+    </button>
+
+    <span style="
+        background:${statusColor};
+        padding:5px 12px;
+        border-radius:20px;
+        font-size:11px;
+        font-weight:700;
+        color:black;
+        box-shadow:0 0 10px ${statusColor}55;
+    ">
+        ${order.status}
+    </span>
+
+</div>
             </div>
+
+            <!-- Warehouses -->
+            <div style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:6px;
+            ">
+
+                ${order.warehouses.map(w => {
+
+                    const isPacking = currentWarehouse === "Packing Station" && !w.packed;
+
+                    return `
+                    <div style="
+                        background:#0f172a;
+                        border:1px solid #1f2937;
+                        padding:6px 8px;
+                        border-radius:8px;
+                        display:flex;
+                        align-items:center;
+                        gap:6px;
+                    ">
+
+                        <span style="font-size:11px;font-weight:600">
+                            📍 ${w.base.toUpperCase()}
+                        </span>
+
+                        ${
+                            w.packed 
+                            ? `<span style="color:#22c55e;font-size:11px">✔</span>`
+                            : isPacking 
+                                ? `
+                                <button onclick="markWarehousePacking('${order.orderNo}','${w.base}')"
+                                style="
+                                background:linear-gradient(135deg,#22c55e,#16a34a);
+                                border:none;
+                                padding:4px 8px;
+                                border-radius:6px;
+                                font-size:10px;
+                                font-weight:700;
+                                cursor:pointer;
+                                color:white;
+                                box-shadow:0 0 8px #22c55e66;
+                                ">
+                                Receive
+                                </button>
+                                `
+                                : `<span style="color:#f59e0b;font-size:11px">Pending</span>`
+                        }
+
+                    </div>
+                    `;
+
+                }).join("")}
+
+            </div>
+
+            <!-- Comment -->
+            ${order.comment ? `
+            <div style="
+                font-size:12px;
+                color:#38bdf8;
+                background:#020617;
+                padding:6px 8px;
+                border-radius:8px;
+                border:1px dashed #1f2937;
+            ">
+                💬 ${order.comment}
+            </div>
+            ` : ""}
+
+        </div>
         `;
+
+        // ✨ Hover Effect
+        card.onmouseenter = () => {
+            card.style.transform = "scale(1.01)";
+            card.style.boxShadow = "0 0 20px #0ea5e933";
+        };
+
+        card.onmouseleave = () => {
+            card.style.transform = "scale(1)";
+            card.style.boxShadow = "none";
+        };
+
         container.appendChild(card);
     });
 
@@ -1894,6 +1998,94 @@ newOrderInput.addEventListener("input", function () {
     }
 
 });
+function showOrderHistory(orderNo) {
+    const role = localStorage.getItem("userRole");
+    if (role !== "manager") {
+        showToast("⛔ Access denied");
+        return;
+    }
+
+    const order = allOrders.find(o => o.orderNo === orderNo);
+    if (!order) return;
+
+    const history = order.history || [];
+    let html = "";
+
+    if (!history.length) {
+        html = `<p>No history found</p>`;
+    } else {
+        // لمنع تكرار المستودعات
+        const seenWarehouses = new Set();
+
+        // ترتيب التاريخ من الأحدث للأقدم
+        history.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(h => {
+            let actionText = "";
+
+            if (h.action === "created") {
+                actionText = `🟢 Created`;
+            } else if (h.action === "edited") {
+                actionText = `✏️ Edited (${h.oldOrderNo} → ${h.newOrderNo})`;
+            } else if (h.action === "packed") {
+                actionText = `📦 Packed in ${h.warehouse}`;
+            }
+
+            // عرض معلومات المستودعات مرة واحدة فقط
+            if (order.warehouses && order.warehouses.length) {
+                html += `<div style="margin-bottom:10px; display:flex; flex-direction:column; gap:6px;">`;
+                order.warehouses.forEach(w => {
+                    const key = w.base.trim().toLowerCase();
+                    if (seenWarehouses.has(key)) return;
+                    seenWarehouses.add(key);
+
+                    html += `
+                    <div style="
+                        background:#020617;
+                        padding:10px;
+                        border-radius:8px;
+                        border:1px solid #1f2937;
+                        font-size:12px;
+                        color:white;
+                    ">
+                        <div style="font-weight:600">📍 ${w.base.toUpperCase()}</div>
+                        <div style="opacity:0.7; font-size:11px; margin-top:3px;">
+                            🕒 Entered: ${w.receivedTime ? new Date(w.receivedTime).toLocaleString() : "-"}
+                        </div>
+                    </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            // عرض سجل الحدث
+            html += `
+            <div style="
+                background:#0f172a;
+                padding:10px;
+                border-radius:8px;
+                margin-bottom:8px;
+                border:1px solid #1f2937;
+                font-size:13px;
+                color:white;
+            ">
+                <div style="font-weight:600">${actionText}</div>
+                <div style="opacity:0.6; font-size:11px; margin-top:2px;">${new Date(h.date).toLocaleString()}</div>
+                <div style="color:#38bdf8; font-size:11px; margin-top:2px;">By: ${h.by || "-"}</div>
+            </div>
+            `;
+        });
+    }
+
+    document.getElementById("historyContent").innerHTML = html;
+    document.getElementById("historyModal").classList.remove("hidden");
+}
+function closeHistoryModal(){
+    document.getElementById("historyModal").classList.add("hidden");
+}
+document.getElementById("historyModal").addEventListener("click", function(e){
+    if(e.target.id === "historyModal"){
+        closeHistoryModal();
+    }
+});
 function openEditOrder(orderNo){
 
 const order = allOrders.find(o => o.orderNo === orderNo);
@@ -1929,7 +2121,19 @@ if(data.orderNo === window.editingOrderNo){
 
 update(ref(db,"orders/"+child.key),{
 orderNo:newOrderNo,
-comment:comment
+comment:comment,
+    history:[
+        ...(data.history || []),
+        {
+            action:"edited",
+            date:new Date().toISOString(),
+            by: localStorage.getItem("currentWarehouse"),
+            oldOrderNo:data.orderNo,
+            newOrderNo:newOrderNo,
+            comment:comment
+        }
+    ]
+    
 });
 
 }
@@ -2422,7 +2626,17 @@ return w;
 });
 
 update(ref(db,"orders/"+key),{
-warehouses:updatedWarehouses
+    warehouses:updatedWarehouses,
+
+    history:[
+        ...(order.history || []),
+        {
+            action:"packed",
+            warehouse:warehouseName,
+            date:new Date().toISOString(),
+            by:"Packing Station"
+        }
+    ]
 });
 
 }
