@@ -29,6 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
 const orderDetails = document.getElementById("orderDetails");
 
 orderDetails.addEventListener("click", (e) => {
+
     if (e.target === orderDetails) {
         orderDetails.classList.add("hidden");
     }
@@ -158,6 +159,8 @@ const users = [
             const orderNo = r[ORDER_COL]?.trim().toUpperCase();
             if (orderNo) newSet.add(orderNo);
         });
+        canceledOrdersSet = newSet;
+
 allOrders.forEach(order=>{
 
 if(canceledOrdersSet.has(order.orderNo)){
@@ -167,8 +170,7 @@ order.status="canceled";
 }
 
 });
-        canceledOrdersSet = newSet;
-
+        
         console.log("Canceled Orders Loaded:", canceledOrdersSet.size);
     }
 
@@ -229,15 +231,7 @@ order.status="canceled";
                         company: company || "LMD"
                     };
                 });
-allOrders.forEach(order=>{
 
-if(distributedOrdersMap[order.orderNo]){
-
-order.status="distributed";
-
-}
-
-});
                 const newHash = hashDistribution(newMap);
 
                 // 🔥 BLOCK إذا رجعت نسخة قديمة
@@ -258,7 +252,7 @@ order.status="distributed";
                 distributionCache = newMap;
                 distributedOrdersMap = newMap;
                 lastDistributionHash = newHash;
-
+updateDashboard();
                 console.log("✅ Distribution updated safely");
             })
             .catch(err => {
@@ -533,9 +527,12 @@ autoMoveToPacking();
 
 function getWarehouseBadgeColor(order, warehouse) {
 
-        if (order.status === "canceled") {
-            return "#ef4444"; // red
-        }
+        if (
+    order.status === "canceled" ||
+    order.status === "canceled_before_delivery"
+) {
+    return "#ef4444";
+}
 
         if (order.status === "distributed") {
             return "#22c55e";
@@ -713,13 +710,16 @@ for (const order of allOrders) {
 
         const canceledToday = allOrders.filter(o => {
 
-            if (o.status !== "canceled") return false;
+    if (
+        o.status !== "canceled" &&
+        o.status !== "canceled_before_delivery"
+    ) return false;
 
-            const dateToCheck = getEffectiveDate(o);
-            if (!dateToCheck) return false;
+    const dateToCheck = getEffectiveDate(o);
+    if (!dateToCheck) return false;
 
-            return dateToCheck >= CANCELED_START_DATE;
-        });
+    return dateToCheck >= CANCELED_START_DATE;
+});
         const distributedToday = todayOrders.filter(o => o.status === "distributed");
         const completedToday = todayOrders.filter(o => o.status === "completed");
         const pendingToday = todayOrders.filter(o =>
@@ -957,18 +957,21 @@ ${pendingOrders.length}</a>
 
         if (type === "canceled") {
 
-            const CANCELED_START_DATE = "2026-02-02";
+    const CANCELED_START_DATE = "2026-02-02";
 
-            todayFiltered = allOrders.filter(o => {
+    todayFiltered = allOrders.filter(o => {
 
-                if (o.status !== "canceled") return false;
+        if (
+            o.status !== "canceled" &&
+            o.status !== "canceled_before_delivery"
+        ) return false;
 
-                const dateToCheck = getEffectiveDate(o);
-                if (!dateToCheck) return false;
+        const dateToCheck = getEffectiveDate(o);
+        if (!dateToCheck) return false;
 
-                return dateToCheck >= CANCELED_START_DATE;
-            });
-        }
+        return dateToCheck >= CANCELED_START_DATE;
+    });
+}
         if (type === "completed") {
             todayFiltered = todayOrders.filter(o => o.status === "completed");
         }
@@ -1056,6 +1059,7 @@ ${pendingOrders.length}</a>
 
                 let statusText =
                     order.status === "canceled" ? "Canceled" :
+            order.status === "canceled_before_delivery" ? "Canceled Before Delivery" :
                         order.status === "distributed" ? "Distributed" :
                             order.status === "completed" ? "In-Packing" :
                                 order.status === "partial" ? "Partial" :
@@ -1288,8 +1292,11 @@ displayOrders(o, `Warehouse: ${warehouse}`);
             let statusText = "";
 
             if (order.status === "canceled") {
-                statusText = "Canceled";
-            }
+    statusText = "Canceled";
+}
+else if (order.status === "canceled_before_delivery") {
+    statusText = "Canceled Before Delivery";
+}
             else if (order.status === "distributed") {
                 statusText = "Distributed";
             }
@@ -1363,7 +1370,7 @@ localStorage.getItem("currentWarehouse") === "Packing Station"
 && order.status === "pending"
 
 ? `
-<button onclick="receiveInPacking('${order.orderNo}')"
+<button id="rec" onclick="receiveInPacking('${order.orderNo}')"
 style="
 margin-left:8px;
 background:#22c55e;
@@ -2023,9 +2030,28 @@ function showOrderHistory(orderNo) {
 
             if (h.action === "created") {
                 actionText = `🟢 Created`;
-            } else if (h.action === "edited") {
-                actionText = `✏️ Edited (${h.oldOrderNo} → ${h.newOrderNo})`;
-            } else if (h.action === "packed") {
+            }else if (h.action === "edited") {
+
+    let commentChange = "";
+
+    if (h.oldComment !== h.newComment) {
+        commentChange = `
+            <div style="margin-top:6px;font-size:12px;color:#fbbf24">
+                💬 Comment:
+                <br>
+                <span style="color:#ef4444">Old:</span> ${h.oldComment || "-"}
+                <br>
+                <span style="color:#22c55e">New:</span> ${h.newComment || "-"}
+            </div>
+        `;
+    }
+
+    actionText = `
+        ✏️ Edited (${h.oldOrderNo} → ${h.newOrderNo})
+        ${commentChange}
+    `;
+}
+            else if (h.action === "packed") {
                 actionText = `📦 Packed in ${h.warehouse}`;
             }
 
@@ -2090,6 +2116,10 @@ function openEditOrder(orderNo){
 
 const order = allOrders.find(o => o.orderNo === orderNo);
 if(!order) return;
+if(order.status === "canceled_before_delivery"){
+    showToast("⛔ Cannot edit canceled order");
+    return;
+}
 
 document.getElementById("editOrderNumber").value = order.orderNo;
 document.getElementById("editOrderComment").value = order.comment || "";
@@ -2120,8 +2150,8 @@ const data = child.val();
 if(data.orderNo === window.editingOrderNo){
 
 update(ref(db,"orders/"+child.key),{
-orderNo:newOrderNo,
-comment:comment,
+    orderNo:newOrderNo,
+    comment:comment,
     history:[
         ...(data.history || []),
         {
@@ -2130,10 +2160,10 @@ comment:comment,
             by: localStorage.getItem("currentWarehouse"),
             oldOrderNo:data.orderNo,
             newOrderNo:newOrderNo,
-            comment:comment
+            oldComment: data.comment || "",   // ✅ القديم
+            newComment: comment              // ✅ الجديد
         }
     ]
-    
 });
 
 }
@@ -2224,7 +2254,10 @@ packingTime:new Date().toISOString()
             });
         });
 function resolveOrderStatus(order) {
-
+if ((order.comment || "").toLowerCase().includes("canceled")
+        && !distributedOrdersMap[order.orderNo]) {
+        return "canceled_before_delivery";
+    }
     // 1️⃣ Canceled
     if (canceledOrdersSet.has(order.orderNo)) {
         return "canceled";
@@ -2488,8 +2521,8 @@ if(role === "manager" || currentWarehouse === "Packing Station"){
 
         // 🔥 بناء recent orders
         buildRecentOrders();
-
-        // 🔥 عرضها
+loadDistributedOrders();
+       
         renderRecentOrders();
 
         updateDashboard();
@@ -2581,8 +2614,7 @@ if(!data) return;
 
 Object.entries(data).forEach(([key,order])=>{
 
-if(order.status === "pending"){
-
+if (order.status === "pending" &&!canceledOrdersSet.has(order.orderNo)){
 update(ref(db,"orders/"+key),{
 status:"in-packing",
 packingTime:new Date().toISOString()
@@ -2595,9 +2627,17 @@ packingTime:new Date().toISOString()
 },{onlyOnce:true});
 
 }
-
-
 function markWarehousePacking(orderNo, warehouseName){
+const order = allOrders.find(o => o.orderNo === orderNo);
+
+if (!order ||
+    order.status === "canceled" ||
+    order.status === "canceled_before_delivery") {
+    return;
+}
+openConfirmModal(
+`Receive order <b>${orderNo}</b> in <b>${warehouseName}</b>?`,
+()=>{
 
 const ordersRef = ref(db,"orders");
 
@@ -2612,31 +2652,27 @@ if(order.orderNo === orderNo){
 const updatedWarehouses = order.warehouses.map(w=>{
 
 if(w.base.toLowerCase() === warehouseName.toLowerCase()){
-
 return {
 ...w,
 packed:true,
 packingTime:new Date().toISOString()
 };
-
 }
 
 return w;
-
 });
 
 update(ref(db,"orders/"+key),{
-    warehouses:updatedWarehouses,
-
-    history:[
-        ...(order.history || []),
-        {
-            action:"packed",
-            warehouse:warehouseName,
-            date:new Date().toISOString(),
-            by:"Packing Station"
-        }
-    ]
+warehouses:updatedWarehouses,
+history:[
+...(order.history || []),
+{
+action:"packed",
+warehouse:warehouseName,
+date:new Date().toISOString(),
+by:"Packing Station"
+}
+]
 });
 
 }
@@ -2644,6 +2680,60 @@ update(ref(db,"orders/"+key),{
 });
 
 },{onlyOnce:true});
+
+});
+}
+function openConfirmModal(message, onConfirm){
+
+const modal = document.getElementById("confirmModal");
+const text = document.getElementById("confirmText");
+const okBtn = document.getElementById("confirmOk");
+const cancelBtn = document.getElementById("confirmCancel");
+
+const btnText = document.getElementById("btnText");
+const loader = document.getElementById("btnLoader");
+const icon = document.getElementById("confirmIcon");
+const sound = document.getElementById("successSound");
+
+text.innerHTML = message;
+modal.classList.remove("hidden");
+
+function reset(){
+    modal.classList.add("hidden");
+    loader.classList.add("hidden");
+    btnText.style.display = "inline";
+    okBtn.classList.remove("loading");
+    icon.innerHTML = "📦";
+    icon.classList.remove("success");
+}
+
+cancelBtn.onclick = reset;
+
+modal.onclick = (e)=>{
+    if(e.target === modal) reset();
+};
+
+okBtn.onclick = async ()=>{
+
+    // start loading
+    loader.classList.remove("hidden");
+    btnText.style.display = "none";
+    okBtn.classList.add("loading");
+
+    // simulate or wait actual action
+    await onConfirm();
+
+    // success state
+    loader.classList.add("hidden");
+    icon.innerHTML = "✔";
+    icon.classList.add("success");
+
+    sound.play().catch(()=>{});
+
+    setTimeout(()=>{
+        reset();
+    },1000);
+};
 
 }
 function showPackingSelection(order){
@@ -2718,7 +2808,17 @@ function log(msg) {
 let receivingOrders = new Set();
 
 function receiveInPacking(orderNo){
+const order = allOrders.find(o => o.orderNo === orderNo);
 
+if (!order ||
+    order.status === "canceled" ||
+    order.status === "canceled_before_delivery") {
+
+    const btn = document.getElementById("rec");
+    if(btn) btn.style.display = "none"; // ✅ الصحيح
+
+    return; // 🔥 مهم جداً
+}
 if(receivingOrders.has(orderNo)) return;
 
 receivingOrders.add(orderNo);
@@ -2752,4 +2852,4 @@ showToast("🗑️ All orders deleted");
 console.error(err);
 });
 
-}
+l}
