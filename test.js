@@ -2,7 +2,7 @@ let refreshTimer = null;
     let isRefreshing = false;
     let showOnlyBacklog = false;
     let firstLoad = true;
-
+let showOnlyComments = false;
     let dataCache = null;
     let lastDataHash = "";
     let isLoading = false;
@@ -27,8 +27,9 @@ let refreshTimer = null;
     const dashboard = document.getElementById("dashboard");
 window.addEventListener('DOMContentLoaded', () => {
 const orderDetails = document.getElementById("orderDetails");
-
-orderDetails.addEventListener("click", (e) => {
+if (orderDetails) {
+  orderDetails.addEventListener("click", (e) => {
+   
 
     if (e.target === orderDetails) {
         orderDetails.classList.add("hidden");
@@ -61,6 +62,7 @@ if(!document.getElementById("editOrderModal").classList.contains("hidden")) retu
 setTimeout(()=>input.focus(),100);
 });
 });
+    }
     const loggedIn = localStorage.getItem("isLoggedIn");
     const role = localStorage.getItem("userRole");
 
@@ -283,6 +285,7 @@ updateDashboard();
 
         // 🔹 تحديث الداشبورد  
         updateDashboard();
+        updateFooterStats();
     }
     let lastDisplayedOrders = [];
 
@@ -482,6 +485,7 @@ autoMoveToPacking();
 
     localStorage.setItem("isLoggedIn", "true");
     localStorage.setItem("currentWarehouse", u.warehouse);
+    localStorage.setItem("userWarehouse", u.warehouse);
     localStorage.setItem("userRole", u.role);
 
     loginContainer.style.display = "none";
@@ -597,7 +601,56 @@ function getWarehouseBadgeColor(order, warehouse) {
     }
 
 
+function updateFooterSystemInfo() {
+    const role = localStorage.getItem("userRole") || "User";
+    const warehouse = localStorage.getItem("warehouseAccess") || "All Warehouses";
 
+    document.getElementById("footerUserRole").textContent = role;
+    document.getElementById("footerWarehouseAccess").textContent = warehouse;
+}
+
+function updateThemeIndicator() {
+    const isDark = document.body.classList.contains("dark");
+
+    const icon = document.getElementById("themeIcon");
+    const status = document.getElementById("themeStatus");
+
+    if (isDark) {
+        icon.className = "fa-solid fa-moon";
+        status.textContent = "Dark Mode";
+    } else {
+        icon.className = "fa-solid fa-sun";
+        status.textContent = "Light Mode";
+    }
+}
+
+function updateFooterLiveInfo() {
+    document.getElementById("footerLastUpdate").textContent =
+        new Date().toLocaleTimeString();
+}
+
+setInterval(() => {
+    updateFooterSystemInfo();
+    updateThemeIndicator();
+    updateFooterLiveInfo();
+    updateWarehouseAccess();
+}, 3000);
+function updateWarehouseAccess() {
+    const role = (localStorage.getItem("userRole") || "user").toLowerCase();
+
+    // هذا لازم يكون مخزن عندك عند تسجيل الدخول
+    const userWarehouse = localStorage.getItem("userWarehouse") || "Unknown Warehouse";
+
+    let text = "";
+
+    if (role === "manager") {
+        text = "All Warehouses Access";
+    } else {
+        text = userWarehouse;
+    }
+
+    document.getElementById("footerWarehouseAccess").textContent = text;
+}
 
     // FORMAT DATE  
     function formatDateForInput(value) {
@@ -1597,14 +1650,6 @@ input.focus();
 },200);
 
 // إذا خرج المؤشر يرجع
-input.addEventListener("blur",()=>{
-
-if(!document.getElementById("editOrderModal").classList.contains("hidden")) return;
-
-setTimeout(()=>input.focus(),100);
-
-});
-
 }
     // =============================
     // SHOW TAB
@@ -1764,6 +1809,7 @@ clearNewOrderForm();
 });
 
 }
+let visibleCount = 10;
 // 🔥 
 function buildRecentOrders(){
 
@@ -1784,7 +1830,24 @@ function buildRecentOrders(){
         });
 
     // أخذ آخر 10 طلبات فقط
-    recentOrders = sorted.slice(0,10);
+    recentOrders = sorted; // كل الطلبات
+}
+let showOnlyPending = false;
+function togglePendingFilter(){
+
+showOnlyPending = !showOnlyPending;
+
+const btn = document.getElementById("pendingToggleBtn");
+
+if(showOnlyPending){
+btn.style.background = "#f59e0b";
+btn.textContent = "Showing Pending Only";
+}else{
+btn.style.background = "#020617";
+btn.textContent = "Show Pending Only";
+}
+
+renderRecentOrders(); // 🔥 إعادة رسم
 }
 
 function renderRecentOrders() {
@@ -1792,13 +1855,31 @@ function renderRecentOrders() {
     const role = localStorage.getItem("userRole");
     const container = document.getElementById("newOrdersList");
     if (!container) return;
-
+if(role !== "packing" && role!== "manager"){
+const btn = document.getElementById("commentsToggleBtn");
+if(btn) btn.style.display = "none";
+}
+    if(role !== "packing" && role !== "manager"){
+    const pendingBtn = document.getElementById("pendingToggleBtn");
+    if(pendingBtn) pendingBtn.style.display = "none";
+}
+    
     container.innerHTML = "";
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    recentOrders.forEach(order => {
+    const filteredOrders = recentOrders.filter(order => {
 
+    if(showOnlyPending && order.status !== "pending") return false;
+    if(showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
+
+    return true;
+});
+
+// 🔥 عرض فقط عدد محدد
+const visibleOrders = filteredOrders.slice(0, visibleCount);
+
+visibleOrders.forEach(order => {
         const card = document.createElement("div");
 
         card.style.cssText = `
@@ -1965,9 +2046,35 @@ function renderRecentOrders() {
 
         container.appendChild(card);
     });
+// زر عرض المزيد
+if(filteredOrders.length > visibleCount){
 
-    document.getElementById("newOrderPreview").classList.remove("hidden");
+    const loadMoreBtn = document.createElement("button");
+
+    loadMoreBtn.textContent = "Show More →";
+    loadMoreBtn.style.cssText = `
+        width:100%;
+        padding:10px;
+        margin-top:10px;
+        background:#0ea5e9;
+        border:none;
+        border-radius:8px;
+        color:white;
+        cursor:pointer;
+        font-weight:600;
+    `;
+
+    loadMoreBtn.onclick = () => {
+        visibleCount += 10;
+        renderRecentOrders();
+    };
+
+    container.appendChild(loadMoreBtn);
 }
+    document.getElementById("newOrderPreview").classList.remove("hidden");
+
+}
+
 const newOrderInput = document.getElementById("newOrderNumber");
 
 newOrderInput.addEventListener("input", function () {
@@ -2009,6 +2116,7 @@ function showOrderHistory(orderNo) {
     const role = localStorage.getItem("userRole");
     if (role !== "manager") {
         showToast("⛔ Access denied");
+        
         return;
     }
 
@@ -2853,3 +2961,33 @@ console.error(err);
 });
 
          }
+
+function toggleCommentsFilter(){
+
+showOnlyComments = !showOnlyComments;
+
+const btn = document.getElementById("commentsToggleBtn");
+
+if(showOnlyComments){
+btn.style.background = "#22c55e";
+btn.textContent = "Showing Comments Only";
+}else{
+btn.style.background = "#020617";
+btn.textContent = "Show Comments Only";
+}
+
+renderRecentOrders(); // 🔥 إعادة رسم
+}
+function updateFooterStats() {
+    if (!allOrders) return;
+
+    let total = allOrders.length;
+
+    let pending = allOrders.filter(o => o.status === "pending").length;
+
+    let distributed = allOrders.filter(o => o.status === "distributed").length;
+
+    document.getElementById("footerTotalOrders").textContent = total;
+    document.getElementById("footerPendingOrders").textContent = pending;
+    document.getElementById("footerDistributedOrders").textContent = distributed;
+}
