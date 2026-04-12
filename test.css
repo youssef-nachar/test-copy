@@ -126,6 +126,14 @@
         padding: 8px;  
         text-align: center  
     }  
+
+#loginSection ~ .pro-footer {
+    display: none;
+}
+
+#dashboard:not(.hidden) ~ .pro-footer {
+    display: block;
+}
 .pro-footer {
     position: relative;
     overflow: hidden;
