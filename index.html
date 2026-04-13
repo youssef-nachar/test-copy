@@ -61,6 +61,9 @@
             <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
             <a href="#" onclick="showNewOrderTab()">
                 <i class="fa-solid fa-plus"></i> New Orders</a>
+                 <button id="teamNotesBtn" style ="display:none;"onclick="openTeamNotesTab()">
+    Team Notes
+</button>
         </aside>
 
         <main class="main">
@@ -128,6 +131,32 @@ background:#22c55e;
 
                 </div>
             </header>
+            <div id="teamNotesTab" class="hidden">
+
+    <h2 style="margin-bottom:15px"> Team Notes</h2>
+
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+        <input id="employeeName" placeholder="Employee Name"
+        style="padding:10px;border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+
+        <input id="teamNoteInput" placeholder="Write note..."
+        style="flex:1;padding:10px;border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+
+        <button onclick="saveTeamNote()" style="
+            background:#22c55e;
+            border:none;
+            padding:10px 14px;
+            border-radius:8px;
+            cursor:pointer;
+            font-weight:600;
+        ">
+            Add
+        </button>
+    </div>
+
+    <div id="teamNotesList"></div>
+
+</div>
             <div id="newOrderTab" class="card hidden" style="margin-top:30px">
 
                 <h3 style="
