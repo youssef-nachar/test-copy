@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-    <link rel="stylesheet" href="test.css">
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
@@ -224,6 +224,7 @@ margin-bottom:10px;
     border:1px solid #1f2937;
     cursor:pointer;
 ">
+
                             Show Received Only
                         </button>
                         <input type="text" id="newOrderSearch" placeholder="Search by Order #..." style="
@@ -237,6 +238,22 @@ margin-bottom:10px;
             outline:none;
             font-size:14px;
         " />
+<button id="exportBtn"
+onclick="exportOrderDetailsToExcel()"
+style="
+margin-top: 20px;
+background:#22c55e;
+border:none;
+padding:6px 12px;
+border-radius:6px;
+cursor:pointer;
+font-size:12px;
+font-weight:600;
+color:white;
+margin-left:6px;
+">
+Export Excel
+</button>
 
 
                         </span>
