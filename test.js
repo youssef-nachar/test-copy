@@ -1467,36 +1467,29 @@ function closeOrderDetails() { orderDetails.classList.add("hidden"); }
 function exportOrderDetailsToExcel() {
 
     let exportOrders = [];
-    let fileType = "filtered";
 
-    // ===============================
-    // تحديد مصدر البيانات
-    // ===============================
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    if (lastType !== null) {
+    // 🔥 نفس الفلترة المستخدمة في renderRecentOrders
+    exportOrders = recentOrders.filter(order => {
 
-        if (showOnlyBacklog) {
-            exportOrders = lastBacklogOrders;
-            fileType = "backlog";
-        }
-        else if (lastBacklogOrders.length > 0) {
-            exportOrders = [
-                ...lastTodayOrders,
-                ...lastBacklogOrders
-            ];
-            fileType = "all";
-        }
-        else {
-            exportOrders = lastTodayOrders;
-            fileType = "today";
+        if (currentWarehouse === "Packing Station" && order.status === "distributed") {
+            return false;
         }
 
-    } else {
-        exportOrders = lastDisplayedOrders;
-        fileType = "filtered";
-    }
+        if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
 
-    if (!exportOrders || !exportOrders.length) {
+        if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
+
+        if (showOnlyReceived) {
+            const hasReceived = order.warehouses?.every(w => w.packed === true);
+            if (!hasReceived) return false;
+        }
+
+        return true;
+    });
+
+    if (!exportOrders.length) {
         alert("No orders to export!");
         return;
     }
@@ -1546,6 +1539,14 @@ function exportOrderDetailsToExcel() {
 
     const link = document.createElement("a");
     link.href = url;
+
+    // 🔥 اسم الملف حسب الفلتر
+    let fileType = "all";
+
+    if (showOnlyPending) fileType = "pending";
+    else if (showOnlyReceived) fileType = "received";
+    else if (showOnlyComments) fileType = "comments";
+
     link.download = `orders_${fileType}_${today}.csv`;
 
     document.body.appendChild(link);
@@ -1554,6 +1555,8 @@ function exportOrderDetailsToExcel() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+
 function normalizeWarehouse(name) {
     if (!name) return { base: "", packed: false };
 
@@ -2117,6 +2120,23 @@ const filteredOrders = recentOrders.filter(order => {
     }
     document.getElementById("newOrderPreview").classList.remove("hidden");
 
+
+const exportBtn = document.getElementById("exportBtn");
+
+if (exportBtn) {
+    if (showOnlyPending) {
+        exportBtn.textContent = "Export Pending";
+    } 
+    else if (showOnlyReceived) {
+        exportBtn.textContent = "Export Received";
+    }
+    else if (showOnlyComments) {
+        exportBtn.textContent = "Export Comments";
+    }
+    else {
+        exportBtn.textContent = "Export All";
+    }
+}
 }
 
 const newOrderInput = document.getElementById("newOrderNumber");
