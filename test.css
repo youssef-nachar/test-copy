@@ -974,7 +974,16 @@ animation: spin 1s linear infinite;
 margin-top:25px;
 animation: fadeIn .35s ease;
 }
-
+#newOrdersList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+#newOrdersList > div {
+    width: 320px;
+    flex: 0 0 auto;
+}
 .new-order-container{
 display:grid;
 grid-template-columns: 380px 1fr;
