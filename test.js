@@ -2010,7 +2010,9 @@ const filteredOrders = sortedOrders.filter(order => {
     }
 
     // 🔥 إخفاء distributed لكل users ما عدا manager
-    if (role == "manager" && order.status === "distributed") {
+    if (role == "packing" && order.status === "distributed") {
+        return false;
+    }   if (role == "manager" && order.status === "distributed") {
         return false;
     }
 
