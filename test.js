@@ -7,7 +7,7 @@ let showOnlyComments = false;
 let dataCache = null;
 let lastDataHash = "";
 let isLoading = false;
-
+let showOnlyPartial = false;
 function hashData(data) {
     return JSON.stringify(
         data
@@ -1843,6 +1843,29 @@ function togglePendingFilter() {
 
     renderRecentOrders();
 }
+function togglePartialFilter() {
+
+    showOnlyPartial = !showOnlyPartial;
+
+    const btn = document.getElementById("partialToggleBtn");
+
+    const count = getPartialCount();
+
+    if (showOnlyPartial) {
+        btn.style.background = "#f97316";
+        btn.textContent = `Showing Partial (${count})`;
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = `Show Partial Only (${count})`;
+    }
+
+    renderRecentOrders();
+}
+function getPartialCount() {
+    if (!recentOrders) return 0;
+
+    return recentOrders.filter(order => order.status === "partial").length;
+}
 function toggleReceivedFilter() {
 
     showOnlyReceived = !showOnlyReceived;
@@ -1883,7 +1906,8 @@ function renderRecentOrders() {
     if (!container) return;
     if (role !== "packing" && role !== "manager") {
         const btn = document.getElementById("commentsToggleBtn");
-        document.getElementById('receivedToggleBtn').style.display="none"
+        document.getElementById('receivedToggleBtn').style.display="none";
+        document.getElementById('partialToggleBtn').style.display="none"
         if (btn) btn.style.display = "none";
     }
     if (role !== "packing" && role !== "manager") {
@@ -1901,18 +1925,25 @@ function renderRecentOrders() {
         }
 
     }
+
     container.innerHTML = "";
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
+const sortedOrders = [...recentOrders].sort((a, b) => {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+});
+const filteredOrders = sortedOrders.filter(order => {
+if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
 
-const filteredOrders = recentOrders.filter(order => {
+if (showOnlyPartial && order.status !== "partial") return false;
 
+if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
     // ❌ إخفاء الطلبات الموزعة لمستخدم Packing
     if(currentWarehouse === "Packing Station" && order.status === "distributed"){
         return false;
     }
 
-    if(showOnlyPending && order.status !== "pending" && showOnlyPending && order.status !== "partial") return false;
+    if(showOnlyPending && order.status !== "pending") return false;
 
     if(showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
 
@@ -2684,7 +2715,9 @@ function listenToOrders() {
             );
 
         }
-
+mergedOrders.sort((a, b) => {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+});
         // 🔥 تحديث الحالة وعدد المستودعات
         allOrders.forEach(order => {
             order.status = resolveOrderStatus(order);
