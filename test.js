@@ -9,7 +9,7 @@ let lastDataHash = "";
 let isLoading = false;
 let showOnlyPartial = false;
 let selectedDateFilter = null;
-
+let showOnlyDistributed = false;
 function hashData(data) {
     return JSON.stringify(
         data
@@ -589,56 +589,6 @@ function getWarehouseBadgeColor(order, warehouse) {
 //     document.getElementById("quickDateMenu").classList.add("hidden");
 // });
 
-
-window.setQuickDate = function (type) {
-    const from = document.getElementById("dateFrom");
-    const to = document.getElementById("dateTo");
-
-    if (!from || !to) return;
-
-    const today = new Date();
-
-    let fromDate = new Date();
-    let toDate = new Date();
-
-    if (type === "today") {
-        fromDate = new Date(today);
-        toDate = new Date(today);
-    }
-
-    else if (type === "yesterday") {
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 1);
-        toDate = new Date(fromDate);
-    }
-
-    else if (type === "week") {
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 7);
-        toDate = new Date(today);
-    }
-
-    else if (type === "month") {
-        fromDate = new Date(today);
-        fromDate.setMonth(today.getMonth() - 1);
-        toDate = new Date(today);
-    }
-
-    // تحويل إلى YYYY-MM-DD
-    const format = d => d.toISOString().split("T")[0];
-
-    from.value = format(fromDate);
-    to.value = format(toDate);
-
-    // تحديث الداشبورد
-    if (typeof updateDashboard === "function") {
-        updateDashboard();
-    }
-
-    // إغلاق القائمة
-    const menu = document.getElementById("quickDateMenu");
-    if (menu) menu.classList.add("hidden");
-};
 
 window.QuickDate = function (type) {
     const from = document.getElementById("dateFrom");
@@ -1763,46 +1713,7 @@ window.toggleMenu = function (e) {
 
     menu.classList.toggle("hidden");
 };
-window.setQuickDate = function (type) {
-    const from = document.getElementById("dateFrom");
-    const to = document.getElementById("dateTo");
 
-    if (!from || !to) return;
-
-    const today = new Date();
-
-    let fromDate = new Date();
-    let toDate = new Date();
-
-    if (type === "today") {
-        fromDate = toDate = new Date(today);
-    }
-
-    else if (type === "yesterday") {
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 1);
-        toDate = new Date(fromDate);
-    }
-
-    else if (type === "week") {
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 7);
-    }
-
-    else if (type === "month") {
-        fromDate = new Date(today);
-        fromDate.setMonth(today.getMonth() - 1);
-    }
-
-    const format = d => d.toISOString().slice(0, 10);
-
-    from.value = format(fromDate);
-    to.value = format(toDate);
-
-    updateDashboard();
-
-    document.getElementById("quickDateMenu")?.classList.add("hidden");
-};
 document.addEventListener("click", function (e) {
     const menu = document.getElementById("quickDateMenu");
     if (!menu) return;
@@ -1998,6 +1909,29 @@ function toggleReceivedFilter() {
 
     renderRecentOrders();
 }
+
+function toggleDistributedFilter() {
+
+    showOnlyDistributed = !showOnlyDistributed;
+
+    const btn = document.getElementById("distributedToggleBtn");
+
+    const count = getDistributedCount();
+
+    if (showOnlyDistributed) {
+        btn.style.background = "#6366f1"; // لون مختلف (بنفسجي مثلاً)
+        btn.textContent = `Showing Distributed (${count})`;
+    } else {
+        btn.style.background = "#020617";
+        btn.textContent = `Show Distributed Only (${count})`;
+    }
+
+    renderRecentOrders();
+}
+function getDistributedCount() {
+    const base = getBaseFilteredOrders();
+    return base.filter(o => o.status === "distributed").length;
+}
 function getBaseFilteredOrders() {
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
@@ -2061,34 +1995,36 @@ function renderRecentOrders() {
 
     container.innerHTML = "";
 
-    const currentWarehouse = localStorage.getItem("currentWarehouse");
+const currentWarehouse = localStorage.getItem("currentWarehouse");
+// const role = localStorage.getItem("userRole");
+
 const sortedOrders = [...recentOrders].sort((a, b) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
 });
+
 const filteredOrders = sortedOrders.filter(order => {
+
     if (selectedDateFilter) {
-const orderDate = getOrderDate(order);
-    if (orderDate !== selectedDateFilter) return false;
-}
-    
-if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
+        const orderDate = getOrderDate(order);
+        if (orderDate !== selectedDateFilter) return false;
+    }
 
-if (showOnlyPartial && order.status !== "partial") return false;
-
-if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
-    // ❌ إخفاء الطلبات الموزعة لمستخدم Packing
-    if(currentWarehouse === "Packing Station" && order.status === "distributed"){
+    // 🔥 إخفاء distributed لكل users ما عدا manager
+    if (role == "manager" && order.status === "distributed") {
         return false;
     }
 
-    if(showOnlyPending && order.status !== "pending") return false;
+    if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
 
-    if(showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
+    if (showOnlyPartial && order.status !== "partial") return false;
 
-    if(showOnlyReceived){
-        const hasReceived = order.warehouses?.every(w => w.packed === true);      
-        if(!hasReceived) return false;
+    if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return false;
+
+    if (showOnlyReceived) {
+        const hasReceived = order.warehouses?.every(w => w.packed === true);
+        if (!hasReceived) return false;
     }
+    if (showOnlyDistributed && order.status !== "distributed") return false;
 
     return true;
 });
@@ -2302,6 +2238,10 @@ if (exportBtn) {
     else if (showOnlyComments) {
         exportBtn.textContent = "Export Comments";
     }
+       else if (showOnlyPartial) {
+        exportBtn.textContent = "Export partial";
+    }
+    
     else {
         exportBtn.textContent = "Export All";
     }
