@@ -224,8 +224,17 @@ margin-bottom:10px;
     border:1px solid #1f2937;
     cursor:pointer;
 ">
-
                             Show Received Only
+                        </button>
+                        <button id="partialToggleBtn" onclick="togglePartialFilter()" style="
+    background:#020617;
+    color:white;
+    padding:8px 12px;
+    border-radius:8px;
+    border:1px solid #1f2937;
+    cursor:pointer;
+">
+                            Show Partial Only
                         </button>
                         <input type="text" id="newOrderSearch" placeholder="Search by Order #..." style="
             width:100%;
@@ -238,6 +247,8 @@ margin-bottom:10px;
             outline:none;
             font-size:14px;
         " />
+
+
 <button id="exportBtn"
 onclick="exportOrderDetailsToExcel()"
 style="
