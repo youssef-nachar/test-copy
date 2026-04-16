@@ -8,6 +8,8 @@ let dataCache = null;
 let lastDataHash = "";
 let isLoading = false;
 let showOnlyPartial = false;
+let selectedDateFilter = null;
+
 function hashData(data) {
     return JSON.stringify(
         data
@@ -132,7 +134,7 @@ let distributedOrders = new Set(); //
 let distributedOrdersMap = {};
 
 
-const canceledSheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTecpCEwZ10-Ncz2y0xSsAnNdLXcWDGt_GiAeJlbWYhgg9B8zlhvJ1DeDH8H0NDSg/pub?gid=508410365&single=true&output=csv";
+// const canceledSheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTecpCEwZ10-Ncz2y0xSsAnNdLXcWDGt_GiAeJlbWYhgg9B8zlhvJ1DeDH8H0NDSg/pub?gid=508410365&single=true&output=csv";
 let canceledOrdersSet = new Set();
 
 async function loadCanceledOrders() {
@@ -263,6 +265,33 @@ function loadDistributedOrders() {
         });
 }
 function resetFilters() {
+
+    // 🔹 إلغاء Today Mode  
+    todayOnlyMode = false;
+
+    const todayBtn = document.getElementById("todayToggleBtn");
+    if (todayBtn) {
+        todayBtn.style.background = "#020617";
+        todayBtn.style.color = "white";
+        todayBtn.textContent = "Today Only";
+    }
+
+    // 🔹 إعادة التاريخ للقيمة الافتراضية  
+    const defaultStart = "2026-02-01";  // 01-Feb-2026  
+    const today = new Date().toISOString().slice(0, 10);
+
+    dateFrom.value = defaultStart;
+    dateTo.value = today;
+
+    // 🔹 إعادة ترتيب الطلبات  
+    orderSortMode = "newest";
+
+    // 🔹 تحديث الداشبورد  
+    updateDashboard();
+    updateFooterStats();
+}
+
+function FiltersReset() {
 
     // 🔹 إلغاء Today Mode  
     todayOnlyMode = false;
@@ -553,53 +582,114 @@ function getWarehouseBadgeColor(order, warehouse) {
 
     return "#7c2d12";
 }
-function toggleQuickMenu(e) {
-    e.stopPropagation();
-    document.getElementById("quickDateMenu").classList.toggle("hidden");
-}
 
 // إغلاق القائمة عند الضغط خارجها  
-document.addEventListener("click", () => {
-    document.getElementById("quickDateMenu").classList.add("hidden");
-});
 
-function setQuickDate(type) {
+// document.addEventListener("click", () => {
+//     document.getElementById("quickDateMenu").classList.add("hidden");
+// });
+
+
+window.setQuickDate = function (type) {
+    const from = document.getElementById("dateFrom");
+    const to = document.getElementById("dateTo");
+
+    if (!from || !to) return;
+
     const today = new Date();
 
-    const format = d => d.toISOString().slice(0, 10);
+    let fromDate = new Date();
+    let toDate = new Date();
 
-    let from, to;
-
-    switch (type) {
-        case "today":
-            from = to = format(today);
-            break;
-
-        case "yesterday":
-            const y = new Date(today);
-            y.setDate(y.getDate() - 1);
-            from = to = format(y);
-            break;
-
-        case "week":
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday  
-            from = format(startOfWeek);
-            to = format(today);
-            break;
-
-        case "month":
-            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            from = format(startOfMonth);
-            to = format(today);
-            break;
+    if (type === "today") {
+        fromDate = new Date(today);
+        toDate = new Date(today);
     }
 
-    dateFrom.value = from;
-    dateTo.value = to;
+    else if (type === "yesterday") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
+        toDate = new Date(fromDate);
+    }
 
-    updateDashboard();
-}
+    else if (type === "week") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 7);
+        toDate = new Date(today);
+    }
+
+    else if (type === "month") {
+        fromDate = new Date(today);
+        fromDate.setMonth(today.getMonth() - 1);
+        toDate = new Date(today);
+    }
+
+    // تحويل إلى YYYY-MM-DD
+    const format = d => d.toISOString().split("T")[0];
+
+    from.value = format(fromDate);
+    to.value = format(toDate);
+
+    // تحديث الداشبورد
+    if (typeof updateDashboard === "function") {
+        updateDashboard();
+    }
+
+    // إغلاق القائمة
+    const menu = document.getElementById("quickDateMenu");
+    if (menu) menu.classList.add("hidden");
+};
+
+window.QuickDate = function (type) {
+    const from = document.getElementById("dateFrom");
+    const to = document.getElementById("dateTo");
+
+    if (!from || !to) return;
+
+    const today = new Date();
+
+    let fromDate = new Date();
+    let toDate = new Date();
+
+    if (type === "today") {
+        fromDate = new Date(today);
+        toDate = new Date(today);
+    }
+
+    else if (type === "yesterday") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
+        toDate = new Date(fromDate);
+    }
+
+    else if (type === "week") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 7);
+        toDate = new Date(today);
+    }
+
+    else if (type === "month") {
+        fromDate = new Date(today);
+        fromDate.setMonth(today.getMonth() - 1);
+        toDate = new Date(today);
+    }
+
+    // تحويل إلى YYYY-MM-DD
+    const format = d => d.toISOString().split("T")[0];
+
+    from.value = format(fromDate);
+    to.value = format(toDate);
+
+    // تحديث الداشبورد
+    if (typeof updateDashboard === "function") {
+        updateDashboard();
+    }
+
+    // إغلاق القائمة
+    const menu = document.getElementById("quickDateMenu");
+    if (menu) menu.classList.add("hidden");
+};
+
 
 
 function updateFooterSystemInfo() {
@@ -679,31 +769,31 @@ function formatDateForInput(value) {
 let highestOrderCountSeen = 0;
 let highestEffectiveDateSeen = null;
 
-function initDate() {
-    const today = new Date().toISOString().slice(0, 10);
+    function initDate() {
+        const today = new Date().toISOString().slice(0, 10);
 
-    dateFrom.value = today;
-    dateTo.value = today;
+        dateFrom.value = today;
+        dateTo.value = today;
 
-    updateDashboard();
-}
+        updateDashboard();
+    }
 
+    function applyFilters() {
 
-function applyFilters() {
+        const from = dateFrom.value || null;
+        const to = dateTo.value || null;
 
-    const from = dateFrom.value ? new Date(dateFrom.value) : null;
-    const to = dateTo.value ? new Date(dateTo.value) : null;
+        return allOrders.filter(o => {
 
-    return allOrders.filter(o => {
+            const dateToCheck = getEffectiveDate(o);
 
-        const date = new Date(getEffectiveDate(o));
+            if (!dateToCheck) return false;
+            if (from && dateToCheck < from) return false;
+            if (to && dateToCheck > to) return false;
 
-        if (from && date < from) return false;
-        if (to && date > to) return false;
-
-        return true;
-    });
-}
+            return true;
+        });
+    }
 let lastKPI = {
     total: 0,
     completed: 0,
@@ -711,22 +801,22 @@ let lastKPI = {
     distributed: 0
 };
 
-function getEffectiveDate(order) {
+    function getEffectiveDate(order) {
 
-    // Distributed
-    if (order.status === "distributed") {
-        return distributedOrdersMap[order.orderNo]?.date?.slice(0, 10);
+        // Distributed
+        if (order.status === "distributed") {
+            return distributedOrdersMap[order.orderNo]?.date;
+        }
+
+        // Completed (In-Packing)
+        if (order.status === "completed") {
+            const firstPackedWH = order.warehouses.find(w => w.packed);
+            return firstPackedWH?.packingTime || order.date;
+        }
+
+        // Pending / Partial
+        return order.date;
     }
-
-    // Completed (In-Packing)
-    if (order.status === "completed") {
-        const firstPackedWH = order.warehouses.find(w => w.packed);
-        return (firstPackedWH?.packingTime || order.date)?.slice(0, 10);
-    }
-
-    // Pending / Partial
-    return order.date;
-}
 //filteredOrders = Object.values(unique);  
 function updateDashboard() {
     for (const order of allOrders) {
@@ -827,23 +917,22 @@ function updateKPINumber(id, newValue) {
 
     element.textContent = newValue;
 }
-function showDistributedOrders() {
-    const from = dateFrom.value || null;
-    const to = dateTo.value || null;
+    function showDistributedOrders() {
+        const from = dateFrom.value || null;
+        const to = dateTo.value || null;
 
-    const orders = allOrders.filter(o => {
-        const distDate = distributedOrdersMap[o.orderNo];
-        if (!distDate) return false;
+        const orders = allOrders.filter(o => {
+            const distDate = distributedOrdersMap[o.orderNo];
+            if (!distDate) return false;
 
-        if (from && distDate < from) return false;
-        if (to && distDate > to) return false;
+            if (from && distDate < from) return false;
+            if (to && distDate > to) return false;
 
-        return true;
-    });
+            return true;
+        });
 
-    displayOrders(orders, "Distributed Orders");
-}
-
+        displayOrders(orders, "Distributed Orders");
+    }
 function renderWarehouseBreakdown(orders) {
 
     const warehouseMap = {};
@@ -851,24 +940,22 @@ function renderWarehouseBreakdown(orders) {
 
     orders.forEach(order => {
 
-        // الطلب يُحسب مرة واحدة
-        grandTotal.t++;
-
         const isDistributed = order.status === "distributed";
 
-        // لمنع تكرار نفس المستودع داخل نفس الطلب
         const seenWH = new Set();
 
         order.warehouses.forEach(w => {
 
             if (!w.base) return;
 
-            // 🔹 توحيد اسم المستودع
             const base = w.base.trim().toLowerCase();
 
-            // 🔹 منع التكرار داخل نفس الطلب
+            // منع التكرار داخل نفس الطلب
             if (seenWH.has(base)) return;
             seenWH.add(base);
+
+            // 🔥 هنا التعديل الأساسي
+            grandTotal.t++; // ✔ كل warehouse يُحسب
 
             if (!warehouseMap[base]) {
                 warehouseMap[base] = { t: 0, c: 0, p: 0, d: 0 };
@@ -878,26 +965,18 @@ function renderWarehouseBreakdown(orders) {
 
             if (isDistributed) {
                 warehouseMap[base].d++;
+                grandTotal.d++;
             }
             else if (order.status === "completed") {
-                warehouseMap[base].c++; // In-Packing
+                warehouseMap[base].c++;
+                grandTotal.c++;
             }
             else {
-                warehouseMap[base].p++; // Pending + Partial
+                warehouseMap[base].p++;
+                grandTotal.p++;
             }
 
         });
-
-        // grand totals
-        if (isDistributed) {
-            grandTotal.d++;
-        }
-        else if (order.status === "completed") {
-            grandTotal.c++;
-        }
-        else {
-            grandTotal.p++;
-        }
 
     });
 
@@ -940,7 +1019,6 @@ ${Object.entries(warehouseMap).map(([wh, v]) => {
 </table>
 `;
 }
-
 // MULTI-WAREHOUSE ORDERS  
 function renderMultiWHOrders(orders) {
     const m = orders.filter(x => (x.warehouses?.length || 0) > 1);
@@ -1065,31 +1143,31 @@ let lastBacklogOrders = [];
 let lastType = null;
 
 
-function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
+  function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
 
-    const orderList = document.getElementById("orderList");
+        const orderList = document.getElementById("orderList");
 
-    function buildTable(orders) {
+        function buildTable(orders) {
 
-        if (!orders.length) {
-            return `<p style="color:#9ca3af">No orders found.</p>`;
-        }
-        orders.sort((a, b) => {
+            if (!orders.length) {
+                return `<p style="color:#9ca3af">No orders found.</p>`;
+            }
+            orders.sort((a, b) => {
 
-            const dateA =
-                a.status === "distributed"
-                    ? distributedOrdersMap[a.orderNo]?.date
-                    : a.date;
+                const dateA =
+                    a.status === "distributed"
+                        ? distributedOrdersMap[a.orderNo]?.date
+                        : a.date;
 
-            const dateB =
-                b.status === "distributed"
-                    ? distributedOrdersMap[b.orderNo]?.date
-                    : b.date;
+                const dateB =
+                    b.status === "distributed"
+                        ? distributedOrdersMap[b.orderNo]?.date
+                        : b.date;
 
-            return new Date(dateB) - new Date(dateA); // ⬅️ من الأقدم للأحدث
+                return new Date(dateB) - new Date(dateA); // ⬅️ من الأقدم للأحدث
 
-        });
-        return `
+            });
+            return `
         <table>
             <tr>
                 <th>Order #</th>
@@ -1098,39 +1176,38 @@ function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
             </tr>
             ${orders.map(order => {
 
-            let statusText =
-                order.status === "canceled" ? "Canceled" :
-                    order.status === "canceled_before_delivery" ? "Canceled Before Delivery" :
+                let statusText =
+                    order.status === "canceled" ? "Canceled" :
                         order.status === "distributed" ? "Distributed" :
                             order.status === "completed" ? "In-Packing" :
                                 order.status === "partial" ? "Partial" :
                                     "Pending";
 
-            return `
+                return `
                 <tr>
                     <td>${order.orderNo}</td>
                     <td>
                         ${order.warehouses.map(w => {
 
-                const badgeColor = getWarehouseBadgeColor(order, w);
+                    const badgeColor = getWarehouseBadgeColor(order, w);
 
-                let tooltipText = "";
+                    let tooltipText = "";
 
-                if (order.status === "distributed") {
-                    tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-                }
-                else if (w.packed) {
-                    tooltipText = `
+                    if (order.status === "distributed") {
+                        tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
+                    }
+                    else if (w.packed) {
+                        tooltipText = `
         Received: ${w.receivedTime || "-"} 
         <br>
         Packed: ${w.packingTime || "-"}
     `;
-                }
-                else {
-                    tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
-                }
+                    }
+                    else {
+                        tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
+                    }
 
-                return `
+                    return `
         <div class="tooltip-wrapper">
             <span style="
                 display:inline-block;
@@ -1150,17 +1227,17 @@ function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
             </div>
         </div>
     `;
-            }).join("")}
+                }).join("")}
                     </td>
                     <td>${statusText}</td>
                 </tr>
                 `;
-        }).join("")}
+            }).join("")}
         </table>
     `;
-    }
+        }
 
-    let html = `
+        let html = `
     <div style="display:flex;gap:10px;margin-bottom:15px">
         <button onclick="toggleBacklogView(false)" class="toggle-btn">
             All
@@ -1171,44 +1248,44 @@ function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
     </div>
 `;
 
-    if (!showOnlyBacklog) {
-        html += `
+        if (!showOnlyBacklog) {
+            html += `
         <h3 style="color:#22c55e;margin-bottom:10px">
             Today Orders (${todayOrders.length})
         </h3>
         ${buildTable(todayOrders)}
     `;
-    }
+        }
 
-    if (backlogOrders.length) {
+        if (backlogOrders.length) {
 
-        // 🔥 تجميع الطلبات حسب التاريخ الفعلي
-        const grouped = {};
+            // 🔥 تجميع الطلبات حسب التاريخ الفعلي
+            const grouped = {};
 
-        backlogOrders.forEach(order => {
+            backlogOrders.forEach(order => {
 
-            const dateKey = getEffectiveDate(order) || "No Date";
+                const dateKey = getEffectiveDate(order) || "No Date";
 
-            if (!grouped[dateKey]) {
-                grouped[dateKey] = [];
-            }
+                if (!grouped[dateKey]) {
+                    grouped[dateKey] = [];
+                }
 
-            grouped[dateKey].push(order);
-        });
+                grouped[dateKey].push(order);
+            });
 
-        // ترتيب التواريخ من الأحدث للأقدم
-        const sortedDates = Object.keys(grouped)
-            .sort((a, b) => new Date(b) - new Date(a));
+            // ترتيب التواريخ من الأحدث للأقدم
+            const sortedDates = Object.keys(grouped)
+                .sort((a, b) => new Date(b) - new Date(a));
 
-        html += `
+            html += `
         <h3 style="color:#f59e0b;margin:30px 0 10px 0">
             Backlog Orders (${backlogOrders.length})
         </h3>
     `;
 
-        sortedDates.forEach(date => {
+            sortedDates.forEach(date => {
 
-            html += `
+                html += `
             <h4 style="
                 margin:20px 0 8px 0;
                 color:#eab308;
@@ -1220,48 +1297,39 @@ function displayOrdersWithBacklog(todayOrders, backlogOrders, type) {
             </h4>
         `;
 
-            html += buildTable(grouped[date]);
-        });
+                html += buildTable(grouped[date]);
+            });
+        }
+
+        orderList.innerHTML = html;
+
+        document.getElementById("orderDetails").classList.remove("hidden");
+    }
+    function toggleBacklogView(value) {
+        showOnlyBacklog = value;
+        updateLastOrderDetailsView();
+    }
+    function updateLastOrderDetailsView() {
+        displayOrdersWithBacklog(lastTodayOrders, lastBacklogOrders, lastType);
+    }
+    // SHOW WAREHOUSE ORDERS  
+    function showWarehouseOrders(warehouse, type) {
+        let o = applyFilters();
+
+        if (warehouse !== 'all') {
+            o = o.filter(order =>
+                order.warehouses.some(w => w.base === warehouse)
+            );
+        }
+
+        if (type === "completed") o = o.filter(x => x.status === "completed");
+        if (type === "pending") o = o.filter(x => x.status === "pending" || x.status === "partial");
+        if (type === "distributed") o = o.filter(x => x.status === "distributed");
+        if (type === "total") o = o; // all filtered orders  
+
+        displayOrders(o, warehouse === 'all' ? 'All Warehouses' : `Warehouse: ${warehouse}`);
     }
 
-    orderList.innerHTML = html;
-
-    document.getElementById("orderDetails").classList.remove("hidden");
-}
-function toggleBacklogView(value) {
-    showOnlyBacklog = value;
-    updateLastOrderDetailsView();
-}
-function updateLastOrderDetailsView() {
-    displayOrdersWithBacklog(lastTodayOrders, lastBacklogOrders, lastType);
-}
-// SHOW WAREHOUSE ORDERS  
-function showWarehouseOrders(warehouse, type) {
-
-    let o = applyFilters();
-
-    if (warehouse !== 'all') {
-
-        o = o.filter(order =>
-            order.warehouses.some(w =>
-                w.base.trim().toLowerCase() === warehouse.trim().toLowerCase()
-            )
-        );
-
-    }
-
-    if (type === "completed")
-        o = o.filter(x => x.status === "completed");
-
-    if (type === "pending")
-        o = o.filter(x => x.status === "pending" || x.status === "partial");
-
-    if (type === "distributed")
-        o = o.filter(x => x.status === "distributed");
-
-    displayOrders(o, `Warehouse: ${warehouse}`);
-
-}
 
 // SHOW MULTI/SINGLE-WAREHOUSE ORDERS  
 function showMultiWHOrders(type) {
@@ -1445,16 +1513,6 @@ Received
     // إظهار نافذة التفاصيل  
     document.getElementById("orderDetails").classList.remove("hidden");
 }
-function toggleMenu(id) {
-    const menu = document.getElementById(id);
-    if (!menu) return;
-
-    const parent = menu.parentElement;
-    parent.classList.toggle("menu-open");
-
-    menu.style.display =
-        menu.style.display === "block" ? "none" : "block";
-}
 
 const toggleToDateBtn = document.getElementById("toggleToDate");
 const dateToInput = document.getElementById("dateTo");
@@ -1465,10 +1523,11 @@ function closeOrderDetails() { orderDetails.classList.add("hidden"); }
 
 // EXPORT TO EXCEL  
 function exportOrderDetailsToExcel() {
+    
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
     let exportOrders = [];
 
-    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
     // 🔥 نفس الفلترة المستخدمة في renderRecentOrders
     exportOrders = recentOrders.filter(order => {
@@ -1640,12 +1699,13 @@ function forceInputFocus() {
         input.focus();
     }, 200);
 
-    // إذا خرج المؤشر يرجع
 }
+
 // =============================
 // SHOW TAB
 // =============================
 function showNewOrderTab() {
+document.getElementById("dashboardHeader").style.display="none"
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
     if (currentWarehouse === "Packing Station") {
@@ -1695,6 +1755,62 @@ function showNewOrderTab() {
 
     forceInputFocus()
 }
+window.toggleMenu = function (e) {
+    e.stopPropagation();
+
+    const menu = document.getElementById("quickDateMenu");
+    if (!menu) return;
+
+    menu.classList.toggle("hidden");
+};
+window.setQuickDate = function (type) {
+    const from = document.getElementById("dateFrom");
+    const to = document.getElementById("dateTo");
+
+    if (!from || !to) return;
+
+    const today = new Date();
+
+    let fromDate = new Date();
+    let toDate = new Date();
+
+    if (type === "today") {
+        fromDate = toDate = new Date(today);
+    }
+
+    else if (type === "yesterday") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 1);
+        toDate = new Date(fromDate);
+    }
+
+    else if (type === "week") {
+        fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - 7);
+    }
+
+    else if (type === "month") {
+        fromDate = new Date(today);
+        fromDate.setMonth(today.getMonth() - 1);
+    }
+
+    const format = d => d.toISOString().slice(0, 10);
+
+    from.value = format(fromDate);
+    to.value = format(toDate);
+
+    updateDashboard();
+
+    document.getElementById("quickDateMenu")?.classList.add("hidden");
+};
+document.addEventListener("click", function (e) {
+    const menu = document.getElementById("quickDateMenu");
+    if (!menu) return;
+
+    if (!menu.contains(e.target) && !e.target.closest(".three-dots")) {
+        menu.classList.add("hidden");
+    }
+});
 function setTodayForNewOrder() {
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById("newOrderDate").value = today;
@@ -1815,9 +1931,8 @@ function buildRecentOrders() {
         .slice()
         .sort((a, b) => {
 
-            const aDate = new Date(a.createdAt || a.date);
-            const bDate = new Date(b.createdAt || b.date);
-
+ const aDate = new Date(a.createdAt || a.date).getTime();
+const bDate = new Date(b.createdAt || b.date).getTime();
             return bDate - aDate; // الأحدث أولاً
         });
 
@@ -1862,9 +1977,8 @@ function togglePartialFilter() {
     renderRecentOrders();
 }
 function getPartialCount() {
-    if (!recentOrders) return 0;
-
-    return recentOrders.filter(order => order.status === "partial").length;
+    const base = getBaseFilteredOrders();
+    return base.filter(o => o.status === "partial").length;
 }
 function toggleReceivedFilter() {
 
@@ -1884,20 +1998,39 @@ function toggleReceivedFilter() {
 
     renderRecentOrders();
 }
-function getReceivedCount() {
+function getBaseFilteredOrders() {
 
-    if (!recentOrders) return 0;
+    const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    return recentOrders.filter(order =>
-        order.warehouses?.some(w => w.packed === true)
-    ).length;
+    return recentOrders.filter(order => {
 
+        // Date Filter
+        if (selectedDateFilter) {
+            const d = new Date(order.createdAt || order.date);
+
+        const orderDate = getOrderDate(order);
+
+            if (orderDate !== selectedDateFilter) return false;
+        }
+
+        // Packing rule
+        if (currentWarehouse === "Packing Station" && order.status === "distributed") {
+            return false;
+        }
+
+        return true;
+    });
 }
+function getReceivedCount() {
+    const base = getBaseFilteredOrders();
 
+    return base.filter(order =>
+        order.warehouses?.every(w => w.packed === true)
+    ).length;
+}
 function getPendingCount() {
-    if (!recentOrders) return 0;
-
-    return recentOrders.filter(order => order.status === "pending").length;
+    const base = getBaseFilteredOrders();
+    return base.filter(o => o.status === "pending").length;
 }
 function renderRecentOrders() {
 
@@ -1933,6 +2066,11 @@ const sortedOrders = [...recentOrders].sort((a, b) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
 });
 const filteredOrders = sortedOrders.filter(order => {
+    if (selectedDateFilter) {
+const orderDate = getOrderDate(order);
+    if (orderDate !== selectedDateFilter) return false;
+}
+    
 if (showOnlyPending && order.status !== "pending" && order.status !== "partial") return false;
 
 if (showOnlyPartial && order.status !== "partial") return false;
@@ -2069,7 +2207,7 @@ if (showOnlyComments && !(order.comment && order.comment.trim() !== "")) return 
                     ? `<span style="color:#22c55e;font-size:11px">✔</span>`
                     : isPacking
                         ? `
-                                <button onclick="markWarehousePacking('${order.orderNo}','${w.base}')"
+                                <button onclick="markWarehousePacking('${order.orderNo}', \`${w.base}\`)"
                                 style="
                                 background:linear-gradient(135deg,#22c55e,#16a34a);
                                 border:none;
@@ -2168,6 +2306,21 @@ if (exportBtn) {
         exportBtn.textContent = "Export All";
     }
 }
+
+const receivedBtn = document.getElementById("receivedToggleBtn");
+if (receivedBtn) {
+    const count = getReceivedCount();
+
+    if (showOnlyReceived) {
+        receivedBtn.textContent = `Showing Received (${count})`;
+        receivedBtn.style.background = "#22c55e";
+    } else {
+        receivedBtn.textContent = `Show Received (${count})`;
+        receivedBtn.style.background = "#020617";
+    }
+}
+updateFilterButtonsCounts();
+updateFilterButtonsCounts();
 }
 
 const newOrderInput = document.getElementById("newOrderNumber");
@@ -2462,10 +2615,17 @@ function resolveOrderStatus(order) {
         return "canceled_before_delivery";
     }
     // 1️⃣ Canceled
-    if (canceledOrdersSet.has(order.orderNo)) {
+  if (canceledOrdersSet.has(order.orderNo)) {
         return "canceled";
     }
 
+    if (order.status === "canceled") {
+        return "canceled";
+    }
+
+    if (order.status === "canceled_before_delivery") {
+        return "canceled_before_delivery";
+    }
     // 2️⃣ Distributed
     if (distributedOrdersMap[order.orderNo]) {
         return "distributed";
@@ -2673,6 +2833,51 @@ function mergeOrdersByNumber(orders) {
     return Object.values(map);
 
 }
+function updateFilterButtonsCounts() {
+
+    const pendingBtn = document.getElementById("pendingToggleBtn");
+    const partialBtn = document.getElementById("partialToggleBtn");
+    const receivedBtn = document.getElementById("receivedToggleBtn");
+
+    if (!recentOrders) return;
+
+    const pendingCount = getPendingCount();
+    const partialCount = getPartialCount();
+    const receivedCount = getReceivedCount();
+
+    // ================= Pending =================
+    if (pendingBtn) {
+        if (showOnlyPending) {
+            pendingBtn.textContent = `Showing Pending (${pendingCount})`;
+            pendingBtn.style.background = "#f59e0b";
+        } else {
+            pendingBtn.textContent = `Show Pending Only (${pendingCount})`;
+            pendingBtn.style.background = "#020617";
+        }
+    }
+
+    // ================= Partial =================
+    if (partialBtn) {
+        if (showOnlyPartial) {
+            partialBtn.textContent = `Showing Partial (${partialCount})`;
+            partialBtn.style.background = "#f97316";
+        } else {
+            partialBtn.textContent = `Show Partial Only (${partialCount})`;
+            partialBtn.style.background = "#020617";
+        }
+    }
+
+    // ================= Received =================
+    if (receivedBtn) {
+        if (showOnlyReceived) {
+            receivedBtn.textContent = `Showing Received (${receivedCount})`;
+            receivedBtn.style.background = "#22c55e";
+        } else {
+            receivedBtn.textContent = `Show Received (${receivedCount})`;
+            receivedBtn.style.background = "#020617";
+        }
+    }
+}
 function listenToOrders() {
 
     const ordersRef = ref(db, "orders");
@@ -2685,8 +2890,10 @@ function listenToOrders() {
             allOrders = [];
             recentOrders = [];
             renderRecentOrders();
+updateFilterButtonsCounts();
             updateDashboard();
             return;
+
         }
         let allOrdersMap = {};
         // تحويل Firebase object الى array
@@ -2703,6 +2910,7 @@ function listenToOrders() {
 
             // يرى كل الطلبات
             allOrders = mergedOrders;
+            
 
         } else {
 
@@ -2746,9 +2954,10 @@ function getOrderWarehouse(orderNo) {
 }
 
 function showDashboardHome() {
+    document.getElementById("dashboardHeader").style.display = "flex";
     document.getElementById("newOrderTab").classList.add("hidden");
     document.getElementById("teamNotesTab").classList.add("hidden");
-
+        document.getElementById("dsh").style.display="block";
 
     document.querySelector(".kpis").classList.remove("hidden");
     document.querySelector(".warehouse-container").classList.remove("hidden");
@@ -2832,6 +3041,108 @@ function autoMoveToPacking() {
 
     }, { onlyOnce: true });
 
+}
+function getOrderDate(order) {
+    const d = new Date(order.createdAt || order.date);
+    return d.getFullYear() + "-" +
+        String(d.getMonth() + 1).padStart(2, "0") + "-" +
+        String(d.getDate()).padStart(2, "0");
+}
+
+
+window.DateFilter = function () {
+    selectedDateFilter = document.getElementById("ordersDateFilter").value || null;
+
+    visibleCount = 300;
+    renderRecentOrders();
+};
+
+// فتح / إغلاق القائمة
+window.toggleQuickMenu = function (event) {
+    event.stopPropagation();
+
+    const menu = document.getElementById("quickDate");
+    if (!menu) return;
+
+    menu.style.display = (menu.style.display === "block") ? "none" : "block";
+};
+
+    function QuickMenu(e) {
+        e.stopPropagation();
+        document.getElementById("quickMenu").classList.toggle("hidden");
+    }
+
+    // إغلاق القائمة عند الضغط خارجها  
+    document.addEventListener("click", () => {
+        document.getElementById("quickMenu").classList.add("hidden");
+    });
+
+// اختيار تاريخ سريع
+window.setQuickDate = function (type) {
+    const input = document.getElementById("ordersDateFilter");
+    if (!input) return;
+
+    const today = new Date();
+    let targetDate = new Date();
+
+    if (type === "today") {
+        targetDate = today;
+    }
+
+    else if (type === "yesterday") {
+        targetDate.setDate(today.getDate() - 1);
+    }
+
+    else if (type === "week") {
+        targetDate.setDate(today.getDate() - 7);
+    }
+
+    else if (type === "month") {
+        targetDate.setMonth(today.getMonth() - 1);
+    }
+
+    // تحويل للتنسيق الصحيح YYYY-MM-DD
+    const formatted = targetDate.toISOString().split("T")[0];
+    input.value = formatted;
+
+    // تشغيل الفلتر إذا موجود
+    if (typeof DateFilter === "function") {
+        DateFilter();
+    }
+
+    // إغلاق القائمة
+    const menu = document.getElementById("quickDate");
+    if (menu) menu.style.display = "none";
+};
+
+
+// Reset الفلتر
+window.clearDateFilter = function () {
+    const input = document.getElementById("ordersDateFilter");
+    if (input) input.value = "";
+
+    if (typeof DateFilter === "function") {
+        DateFilter();
+    }
+
+    const menu = document.getElementById("quickDate");
+    if (menu) menu.style.display = "none";
+};
+
+
+// إغلاق عند الضغط خارجها
+document.addEventListener("click", function () {
+    const menu = document.getElementById("quickDateMenu");
+    if (menu) menu.style.display = "none";
+});
+document.addEventListener("click", () => {
+    const menu = document.getElementById("quickDateMenu");
+    if (menu) menu.style.display = "none";
+});
+function clearDateFilter() {
+    document.getElementById("dateFrom").value = "";
+    document.getElementById("dateTo").value = "";
+    DateFilter();
 }
 function markWarehousePacking(orderNo, warehouseName) {
     const order = allOrders.find(o => o.orderNo === orderNo);
@@ -3045,17 +3356,17 @@ function receiveInPacking(orderNo) {
         });
 
 }
-function clearAllOrders() {
+// function clearAllOrders() {
 
-    remove(ref(db, "orders"))
-        .then(() => {
-            // showToast("🗑️ All orders deleted");
-        })
-        .catch(err => {
-            console.error(err);
-        });
+//     remove(ref(db, "orders"))
+//         .then(() => {
+//             // showToast("🗑️ All orders deleted");
+//         })
+//         .catch(err => {
+//             console.error(err);
+//         });
 
-}
+// }
 
 function toggleCommentsFilter() {
 
