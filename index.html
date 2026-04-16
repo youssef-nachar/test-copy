@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-    <link rel="stylesheet" href="test.css">
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
@@ -50,7 +50,7 @@
         <aside class="sidebar">
             <h2><i class="fa-solid fa-warehouse"></i>Operation dashboard system</h2>
 
-            <a href="#" onclick="showDashboardHome()">
+            <a id ="dsh" href="#" onclick="showDashboardHome()">
                 <i class="fa-solid fa-chart-line"></i> Dashboard</a>
             <div class="menu-item">
                 <a href="#" onclick="toggleMenu('warehousesMenu')">
@@ -67,10 +67,10 @@
         </aside>
 
         <main class="main">
-            <header style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
+            <header id="dashboardHeader"  style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:center">
                 <h3><B style="font-style: 26px;">My</B>Holdal</h3>
-                <div style="display:flex;gap:10px;align-items:center">
-                    <button type="button" id="toggleFrDate" style="padding:4px 8px; font-size:12px;"> from</button>
+                <div id="dates" style="display:flex;gap:10px;align-items:center">
+                    <button type="button"  id="toggleFrDate" style="padding:4px 8px; font-size:12px;"> from</button>
 
                     <input type="date" id="dateFrom" onchange="updateDashboard()">
 
@@ -79,24 +79,25 @@
                     <input type="date" id="dateTo" onchange="updateDashboard()">
 
                     <div class="quick-menu">
-                        <button class="three-dots" onclick="toggleQuickMenu(event)">
-                            <i class="fa-solid fa-ellipsis-vertical"></i>
-                        </button>
+            <button onclick="QuickMenu(event)" style="padding:4px 8px;">
+        ⋯
+    </button>
 
-                        <div id="quickDateMenu" class="quick-dropdown hidden">
-                            <div onclick="setQuickDate('today')">
+
+                        <div id="quickMenu" onclick="click()" class="quick-dropdown hidden">
+                            <div onclick="QuickDate('today')">
                                 <i class="fa-regular fa-calendar-day"></i> Today
                             </div>
-                            <div onclick="setQuickDate('yesterday')">
+                            <div onclick="QuickDate('yesterday')">
                                 <i class="fa-regular fa-calendar-minus"></i> Yesterday
                             </div>
-                            <div onclick="setQuickDate('week')">
+                            <div onclick="QuickDate('week')">
                                 <i class="fa-regular fa-calendar-week"></i> This Week
                             </div>
-                            <div onclick="setQuickDate('month')">
+                            <div onclick="QuickDate('month')">
                                 <i class="fa-regular fa-calendar"></i> This Month
                             </div>
-                            <button id="resetFiltersBtn" onclick="resetFilters()" style="  
+                            <button id="resetFiltersBtn" onclick="FiltersReset()" style="  
                              padding:6px 10px;  
                              border-radius:10px;  
                              background:#7f1d1d;  
@@ -172,7 +173,39 @@ background:#22c55e;
                 </h3>
 
                 <div class="new-order-grid">
+<input type="date" style="margin:20px" id="ordersDateFilter" onchange="DateFilter()" />
 
+<div class="quick-date-wrapper" style="display:inline-block; position:relative;">
+    
+    <button onclick="toggleQuickMenu(event)" style="padding:4px 8px;">
+        ⋯
+    </button>
+
+    <div id="quickDate" style="
+        position:absolute;
+        top:30px;
+        right:0;
+        background:#0f172a;
+        border:1px solid #1f2937;
+        border-radius:10px;
+        padding:8px;
+        display:none;
+        min-width:140px;
+        z-index:999;
+    ">
+        <div onclick="setQuickDate('today')" style="padding:6px;cursor:pointer;">Today</div>
+        <div onclick="setQuickDate('yesterday')" style="padding:6px;cursor:pointer;">Yesterday</div>
+        <div onclick="setQuickDate('week')" style="padding:6px;cursor:pointer;">This Week</div>
+        <div onclick="setQuickDate('month')" style="padding:6px;cursor:pointer;">This Month</div>
+
+        <hr style="border-color:#1f2937">
+
+        <div onclick="clearDateFilter()" style="padding:6px;cursor:pointer;color:#f87171;">
+            Reset
+        </div>
+    </div>
+
+</div>
                     <div class="input-group">
                         <i id="hashtag" class="fa-solid fa-hashtag"></i>
                         <input type="text" id="newOrderNumber" placeholder="Order Number">
@@ -216,6 +249,16 @@ margin-bottom:10px;
 ">
                             Show Pending Only
                         </button>
+                                             <button id="partialToggleBtn" onclick="togglePartialFilter()" style="
+    background:#020617;
+    color:white;
+    padding:8px 12px;
+    border-radius:8px;
+    border:1px solid #1f2937;
+    cursor:pointer;
+">
+                            Show Partial Only
+                        </button>
                         <button id="receivedToggleBtn" onclick="toggleReceivedFilter()" style="
     background:#020617;
     color:white;
@@ -226,16 +269,7 @@ margin-bottom:10px;
 ">
                             Show Received Only
                         </button>
-                        <button id="partialToggleBtn" onclick="togglePartialFilter()" style="
-    background:#020617;
-    color:white;
-    padding:8px 12px;
-    border-radius:8px;
-    border:1px solid #1f2937;
-    cursor:pointer;
-">
-                            Show Partial Only
-                        </button>
+   
                         <input type="text" id="newOrderSearch" placeholder="Search by Order #..." style="
             width:100%;
             padding:10px 14px 10px 40px;
