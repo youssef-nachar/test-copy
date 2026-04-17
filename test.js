@@ -1684,7 +1684,7 @@ document.getElementById("dashboardHeader").style.display="none"
             setTimeout(() => searchInput.focus(), 100);
 
         });
-        document.getElementById("save").style.display = "none";
+        // document.getElementById("save").style.display = "none";
         document.getElementById("hashtag").style.display = "none";
         document.getElementById("newOrderNumber").style.display = "none";
 
