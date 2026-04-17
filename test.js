@@ -1302,7 +1302,9 @@ function showSingleWHOrders(type) {
 }
 
 function displayOrders(orders, title = "Order Details") {
-
+    lastTodayOrders = orders;
+    lastBacklogOrders = [];
+    lastType = title || "table";
 
     orders.sort((a, b) => {
 
@@ -1480,8 +1482,18 @@ function exportOrderDetailsToExcel() {
 
 
     // 🔥 نفس الفلترة المستخدمة في renderRecentOrders
-    exportOrders = recentOrders.filter(order => {
+let sourceOrders = [];
 
+// 🔥 إذا في Order Details مفتوحة → استخدمها
+const isDetailsOpen = !document.getElementById("orderDetails").classList.contains("hidden");
+
+if (isDetailsOpen && (lastTodayOrders.length || lastBacklogOrders.length)) {
+    sourceOrders = [...lastTodayOrders, ...lastBacklogOrders];
+} else {
+    // ✅ رجوع لـ recent + الفلاتر
+sourceOrders = getBaseFilteredOrders();
+}
+exportOrders = sourceOrders.filter(order => {
         if (currentWarehouse === "Packing Station" && order.status === "distributed") {
             return false;
         }
@@ -1551,7 +1563,7 @@ function exportOrderDetailsToExcel() {
 
     // 🔥 اسم الملف حسب الفلتر
     let fileType = "all";
-
+if (lastType) fileType = lastType;
     if (showOnlyPending) fileType = "pending";
     else if (showOnlyReceived) fileType = "received";
     else if (showOnlyComments) fileType = "comments";
@@ -1910,28 +1922,8 @@ function toggleReceivedFilter() {
     renderRecentOrders();
 }
 
-function toggleDistributedFilter() {
 
-    showOnlyDistributed = !showOnlyDistributed;
 
-    const btn = document.getElementById("distributedToggleBtn");
-
-    const count = getDistributedCount();
-
-    if (showOnlyDistributed) {
-        btn.style.background = "#6366f1"; // لون مختلف (بنفسجي مثلاً)
-        btn.textContent = `Showing Distributed (${count})`;
-    } else {
-        btn.style.background = "#020617";
-        btn.textContent = `Show Distributed Only (${count})`;
-    }
-
-    renderRecentOrders();
-}
-function getDistributedCount() {
-    const base = getBaseFilteredOrders();
-    return base.filter(o => o.status === "distributed").length;
-}
 function getBaseFilteredOrders() {
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
