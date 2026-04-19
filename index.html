@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-    <link rel="stylesheet" href="test.css">
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
@@ -48,22 +48,18 @@
     </div>
     <div id="dashboard" class="hidden app">
         <aside class="sidebar">
-            <h2><i class="fa-solid fa-warehouse"></i>Operation dashboard system</h2>
+            <h2></i>Operation dashboard system</h2>
 
             <a id ="dsh" href="#" onclick="showDashboardHome()">
-                <i class="fa-solid fa-chart-line"></i> Dashboard</a>
-            <div class="menu-item">
-                <a href="#" onclick="toggleMenu('warehousesMenu')">
-
-                    <a href="./p&c.html"><i class="fa-solid fa-boxes-stacked"></i> Warehouses</a>
-
-            </div>
-            <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
-            <a href="#" onclick="showNewOrderTab()">
-                <i class="fa-solid fa-plus"></i> New Orders</a>
-            <button id="teamNotesBtn" style="display:none;" onclick="openTeamNotesTab()">
+                 Dashboard</a>
+             
+                    <a href="./p&c.html"> Warehouses</a>
+                  <a href="#" onclick="showNewOrderTab()"> New Orders</a>
+            <a href="#" id="teamNotesBtn" style="display:none;" onclick="openTeamNotesTab()">
                 Team Notes
-            </button>
+            </a>
+                <a href"#"" onclick="showReadyToDistributeTab()">Ready To Distribute</a> 
+                <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
         </aside>
 
         <main class="main">
@@ -158,6 +154,7 @@ background:#22c55e;
                 <div id="teamNotesList"></div>
 
             </div>
+        <div id="readyTab" class="hidden"></div>
             <div id="newOrderTab" class="card hidden" style="margin-top:30px">
 
                 <h3 style="
@@ -459,8 +456,8 @@ Export Excel
 
             </div>
 
-            <button class="delete-edit-btn" onclick="deleteOrder()">
-                <i class="fa-solid fa-trash"></i> Delete Order
+            <button class="delete-edit-btn" onclick="cancelOrder()">
+                <i class="fa-solid fa-trash"></i> Cancel Order
             </button>
 
         </div>
