@@ -89,7 +89,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const aside = document.querySelector("aside");
 
             aside.innerHTML = `
-                <button onclick="signOut()" style="
+                <a href="#" onclick="signOut()" style="
                     width:100%;
                     padding:12px;
                     background:#ef4444;
@@ -99,9 +99,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     font-weight:600;
                     cursor:pointer;
                 ">
-                Add orders
                     Logout
-                </button>
+                </a>
             `;
         }
     }
@@ -652,16 +651,6 @@ function updateFooterSystemInfo() {
 
 
 
-function updateFooterLiveInfo() {
-    document.getElementById("footerLastUpdate").textContent =
-        new Date().toLocaleTimeString();
-}
-
-setInterval(() => {
-    updateFooterSystemInfo();
-    updateFooterLiveInfo();
-    updateWarehouseAccess();
-}, 3000);
 function updateWarehouseAccess() {
     const role = (localStorage.getItem("userRole") || "user").toLowerCase();
 
@@ -784,7 +773,13 @@ function updateDashboard() {
         order.status = resolveOrderStatus(order); // الحالة الأصلية
 
     });
+const readyToday = todayOrders.filter(o =>
+    o.status === "ready_to_distribute"
+);
 
+const readyBacklog = accumulatedOrders.filter(o =>
+    o.status === "ready_to_distribute"
+);
 
     // ================= TODAY =================
     const CANCELED_START_DATE = "2026-02-02";
@@ -801,7 +796,9 @@ function updateDashboard() {
 
         return dateToCheck >= CANCELED_START_DATE;
     });
-    const distributedToday = todayOrders.filter(o => o.status === "distributed");
+    const distributedToday = todayOrders.filter(o =>
+    o.status === "distributed" || o.status === "ready_to_distribute"
+);
     const completedToday = todayOrders.filter(o => o.status === "completed");
     const pendingToday = todayOrders.filter(o =>
         (o.status === "pending" || o.status === "partial")
@@ -817,7 +814,9 @@ function updateDashboard() {
     const pendingBacklog = accumulatedOrders.filter(o =>
         o.status === "pending" || o.status === "partial"
     );
-
+const distributedBacklog = accumulatedOrders.filter(o =>
+    o.status === "distributed" || o.status === "ready_to_distribute"
+);
     // ================= DISPLAY =================
 
     updateKPINumber("total", todayOrders.length);
@@ -1128,7 +1127,7 @@ let lastType = null;
 
                 let statusText =
                     order.status === "canceled" ? "Canceled" :
-                        order.status === "distributed" ? "Distributed" :
+                        order.status === "distributed" || order.status === "ready_to_distribute" ? "Distributed" :
                             order.status === "completed" ? "In-Packing" :
                                 order.status === "partial" ? "Partial" :
                                     "Pending";
@@ -1143,9 +1142,14 @@ let lastType = null;
 
                     let tooltipText = "";
 
-                    if (order.status === "distributed") {
-                        tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-                    }
+                    if (order.status === "distributed" || order.status === "ready_to_distribute") {
+    tooltipText = `
+        Ready/Distributed at: 
+        ${distributedOrdersMap[order.orderNo]?.date 
+          || order.readyTime 
+          || "-"}
+    `;
+}
                     else if (w.packed) {
                         tooltipText = `
         Received: ${w.receivedTime || "-"} 
@@ -1311,7 +1315,7 @@ function displayOrders(orders, title = "Order Details") {
         function getFullDate(order) {
 
             // لو الطلب Distributed
-            if (order.status === "distributed") {
+            if (order.status === "distributed" || order.status === "ready_to_distribute") {
                 return new Date(distributedOrdersMap[order.orderNo]?.date);
             }
 
@@ -1361,6 +1365,9 @@ function displayOrders(orders, title = "Order Details") {
         else if (order.status === "distributed") {
             statusText = "Distributed";
         }
+        if (order.status === "distributed" || order.status === "ready_to_distribute") {
+    return new Date(distributedOrdersMap[order.orderNo]?.date || order.readyTime || order.date);
+}
         else if (order.status === "completed") {
             statusText = "In-Packing";
         }
@@ -1381,10 +1388,14 @@ function displayOrders(orders, title = "Order Details") {
             if (order.status === "distributed") {
                 color = "#22c55e";
                 text = "Distributed";
-            } else if (w.packed) {
+            } 
+        
+else if (w.packed) {
                 color = "#22c55e";
                 text = "In-Packing";
-            } else {
+            } 
+       
+        else {
                 color = "#7c2d12";
                 text = "Pending";
             }
@@ -1664,26 +1675,31 @@ function forceInputFocus() {
 }
 
 // =============================
-// SHOW TAB
 // =============================
 function showNewOrderTab() {
 document.getElementById("dashboardHeader").style.display="none"
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
     if (currentWarehouse === "Packing Station") {
+
+        // ✅ إضافة بدون حذف المحتوى القديم
+        
         const searchInput = document.getElementById("newOrderSearch");
 
-        setTimeout(() => {
-            searchInput.focus();
-        }, 200);
+        if (searchInput) { // ✅ حماية فقط بدون تغيير سلوك
+            setTimeout(() => {
+                searchInput.focus();
+            }, 200);
 
-        searchInput.addEventListener("blur", () => {
+            searchInput.addEventListener("blur", () => {
 
-            if (!document.getElementById("editOrderModal").classList.contains("hidden")) return;
+                if (!document.getElementById("editOrderModal")?.classList.contains("hidden")) return;
 
-            setTimeout(() => searchInput.focus(), 100);
+                setTimeout(() => searchInput.focus(), 100);
 
-        });
+            });
+        }
+
         // document.getElementById("save").style.display = "none";
         document.getElementById("hashtag").style.display = "none";
         document.getElementById("newOrderNumber").style.display = "none";
@@ -2018,7 +2034,9 @@ const filteredOrders = sortedOrders.filter(order => {
         const hasReceived = order.warehouses?.every(w => w.packed === true);
         if (!hasReceived) return false;
     }
-    if (showOnlyDistributed && order.status !== "distributed") return false;
+    if (showOnlyDistributed &&
+    order.status !== "distributed" &&
+    order.status !== "ready_to_distribute") return false;
 
     return true;
 });
@@ -2116,7 +2134,11 @@ const filteredOrders = sortedOrders.filter(order => {
 
                 ${order.warehouses.map(w => {
 
-            const isPacking = currentWarehouse === "Packing Station" && !w.packed;
+            const role = localStorage.getItem("userRole");
+
+const isPacking = 
+    (currentWarehouse === "Packing Station" || role === "manager") 
+    && !w.packed;
 
             return `
                     <div style="
@@ -2415,7 +2437,13 @@ function openEditOrder(orderNo) {
     document.getElementById("editOrderComment").value = order.comment || "";
 
     document.getElementById("editOrderModal").classList.remove("hidden");
+const orderInput = document.getElementById("editOrderNumber");
 
+    if (role === "manager") {
+        orderInput.readOnly = false;
+    } else {
+        orderInput.readOnly = true;
+    }
     window.editingOrderNo = orderNo;
     setTimeout(() => {
         document.getElementById("editOrderNumber").focus();
@@ -2474,9 +2502,9 @@ function closeEditIfOutside(e) {
     }
 
 }
-function deleteOrder() {
+function cancelOrder() {
 
-    if (!confirm("Delete this order ?")) return;
+    if (!confirm("Cancel this order ?")) return;
 
     const ordersRef = ref(db, "orders");
 
@@ -2488,7 +2516,20 @@ function deleteOrder() {
 
             if (data.orderNo === window.editingOrderNo) {
 
-                remove(ref(db, "orders/" + child.key));
+                update(ref(db, "orders/" + child.key), {
+
+                    status: "canceled",
+
+                    history: [
+                        ...(data.history || []),
+                        {
+                            action: "canceled",
+                            date: new Date().toISOString(),
+                            by: localStorage.getItem("currentWarehouse")
+                        }
+                    ]
+
+                });
 
             }
 
@@ -2497,9 +2538,6 @@ function deleteOrder() {
     });
 
     closeEditModal();
-
-    // showToast("Order deleted");
-
 }
 function markInPacking(orderNo) {
 
@@ -2560,6 +2598,9 @@ function resolveOrderStatus(order) {
     if (order.status === "canceled_before_delivery") {
         return "canceled_before_delivery";
     }
+    if (order.status === "ready_to_distribute" || order.readyToDistribute === true) {
+    return "ready_to_distribute";
+}
     // 2️⃣ Distributed
     if (distributedOrdersMap[order.orderNo]) {
         return "distributed";
@@ -2826,6 +2867,7 @@ function listenToOrders() {
             renderRecentOrders();
 updateFilterButtonsCounts();
             updateDashboard();
+            renderReadyOrders();
             return;
 
         }
@@ -3471,4 +3513,124 @@ function updateNoteProgress(employee, index, value) {
     if (bar) {
         bar.style.width = value + "%";
     }
+}
+
+function initReadyToDistribute() {
+
+    const input = document.getElementById("readyOrderInput");
+
+    input.addEventListener("input", function () {
+
+        const value = this.value.trim().toUpperCase();
+
+        // مثال pattern
+        if (!/^#M\d{5}$/.test(value)) return;
+
+        moveToReady(value);
+
+        this.value = "";
+    });
+}
+function moveToReady(orderNo) {
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const order = child.val();
+
+            if (order.orderNo === orderNo) {
+
+                update(ref(db, "orders/" + child.key), {
+                    readyToDistribute: true,
+                    status: "ready_to_distribute", // ✅ مهم جداً
+                    readyTime: new Date().toISOString(),
+                    history: [
+                        ...(order.history || []),
+                        {
+                            action: "ready_to_distribute",
+                            date: new Date().toISOString(),
+                            by: "Packing Station"
+                        }
+                    ]
+                }).then(() => {
+                    renderReadyOrders(); // ✅ تحديث مباشر
+                });
+
+            }
+
+        });
+
+    });
+}
+function renderReadyOrders() {
+
+    const container = document.getElementById("readyOrdersTable");
+
+    const readyOrders = allOrders.filter(o => 
+        o.readyToDistribute || o.status === "ready_to_distribute"
+    );
+
+    if (!readyOrders.length) {
+        container.innerHTML = "<p>No ready orders</p>";
+        return;
+    }
+
+    container.innerHTML = `
+        <table>
+            <tr>
+                <th>Order #</th>
+                <th>Status</th>
+            </tr>
+
+            ${readyOrders.map(o => `
+                <tr>
+                    <td>${o.orderNo}</td>
+                    <td style="color:#22c55e;font-weight:600">
+                        Ready To Distribute
+                    </td>
+                </tr>
+            `).join("")}
+        </table>
+    `;
+}
+
+function showReadyToDistributeTab() {
+    document.getElementById("dashboardHeader").style.display = "none";
+
+    const container = document.getElementById("readyTab");
+
+    container.innerHTML = `
+        <div style="max-width:500px;margin:auto">
+
+            <h3 style="margin-bottom:10px">Ready To Distribute</h3>
+
+            <input id="readyOrderInput"
+                placeholder="Scan / Enter Order #"
+                style="
+                    width:100%;
+                    padding:12px;
+                    border-radius:10px;
+                    border:1px solid #1f2937;
+                    background:#020617;
+                    color:white;
+                    font-size:16px;
+                " />
+
+            <div id="readyOrdersTable" style="margin-top:15px"></div>
+
+        </div>
+    `;
+
+    // إخفاء باقي التابات
+    document.querySelectorAll(".main > div").forEach(div => {
+        if (div.id !== "readyTab") div.classList.add("hidden");
+    });
+
+    container.classList.remove("hidden");
+
+    initReadyToDistribute();
+    renderReadyOrders();
 }
