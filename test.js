@@ -62,7 +62,6 @@ window.addEventListener('DOMContentLoaded', () => {
             input.addEventListener("blur", () => {
                 if (!document.getElementById("editOrderModal").classList.contains("hidden")) return;
 
-setTimeout(() => { input.focus();}, 300);       
      });
         });
     }
