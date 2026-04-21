@@ -53,17 +53,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
             if (!input) return;
 
-            // focus أولي
-            setTimeout(() => {
-                input.focus();
-            }, 300);
+            // // focus أولي
+            // setTimeout(() => {
+            //     input.focus();
+            // }, 300);
 
             // إذا خرج المؤشر يرجع
             input.addEventListener("blur", () => {
                 if (!document.getElementById("editOrderModal").classList.contains("hidden")) return;
 
-                setTimeout(() => input.focus(), 100);
-            });
+setTimeout(() => { input.focus();}, 300);       
+     });
         });
     }
     const loggedIn = localStorage.getItem("isLoggedIn");
@@ -639,34 +639,6 @@ window.QuickDate = function (type) {
     if (menu) menu.classList.add("hidden");
 };
 
-
-
-function updateFooterSystemInfo() {
-    const role = localStorage.getItem("userRole") || "User";
-    const warehouse = localStorage.getItem("warehouseAccess") || "All Warehouses";
-
-    document.getElementById("footerUserRole").textContent = role;
-    document.getElementById("footerWarehouseAccess").textContent = warehouse;
-}
-
-
-
-function updateWarehouseAccess() {
-    const role = (localStorage.getItem("userRole") || "user").toLowerCase();
-
-    // هذا لازم يكون مخزن عندك عند تسجيل الدخول
-    const userWarehouse = localStorage.getItem("userWarehouse") || "Unknown Warehouse";
-
-    let text = "";
-
-    if (role === "manager") {
-        text = "All Warehouses Access";
-    } else {
-        text = userWarehouse;
-    }
-
-    document.getElementById("footerWarehouseAccess").textContent = text;
-}
 
 // FORMAT DATE  
 function formatDateForInput(value) {
@@ -1658,21 +1630,21 @@ document.addEventListener("mouseout", function (e) {
     }
 });
 let recentOrders = [];
-function forceInputFocus() {
+// function forceInputFocus() {
 
-    const warehouse = localStorage.getItem("currentWarehouse");
+//     const warehouse = localStorage.getItem("currentWarehouse");
 
-    const input = warehouse === "Packing Station"
-        ? document.getElementById("newOrderSearch")
-        : document.getElementById("newOrderNumber");
+//     const input = warehouse === "Packing Station"
+//         ? document.getElementById("newOrderSearch")
+//         : document.getElementById("newOrderNumber");
 
-    if (!input) return;
+//     if (!input) return;
 
-    setTimeout(() => {
-        input.focus();
-    }, 200);
+//     setTimeout(() => {
+//         input.focus();
+//     }, 200);
 
-}
+// }
 
 // =============================
 // =============================
@@ -1686,19 +1658,19 @@ document.getElementById("dashboardHeader").style.display="none"
         
         const searchInput = document.getElementById("newOrderSearch");
 
-        if (searchInput) { // ✅ حماية فقط بدون تغيير سلوك
-            setTimeout(() => {
-                searchInput.focus();
-            }, 200);
+        // if (searchInput) { // ✅ حماية فقط بدون تغيير سلوك
+        //     setTimeout(() => {
+        //         searchInput.focus();
+        //     }, 200);
 
-            searchInput.addEventListener("blur", () => {
+        //     searchInput.addEventListener("blur", () => {
 
-                if (!document.getElementById("editOrderModal")?.classList.contains("hidden")) return;
+        //         if (!document.getElementById("editOrderModal")?.classList.contains("hidden")) return;
 
-                setTimeout(() => searchInput.focus(), 100);
+        //         setTimeout(() => searchInput.focus(), 100);
 
-            });
-        }
+        //     });
+        // }
 
         // document.getElementById("save").style.display = "none";
         document.getElementById("hashtag").style.display = "none";
@@ -1721,7 +1693,7 @@ document.getElementById("dashboardHeader").style.display="none"
 
         warehouseInput.value = userWarehouse;
 
-        if (userWarehouse === "Packing Station") {
+        if (userWarehouse === "manager") {
             warehouseInput.readOnly = false;
         } else {
             warehouseInput.readOnly = true;
@@ -1731,7 +1703,7 @@ document.getElementById("dashboardHeader").style.display="none"
 
     setTodayForNewOrder();
 
-    forceInputFocus()
+    // forceInputFocus()
 }
 window.toggleMenu = function (e) {
     e.stopPropagation();
@@ -1967,6 +1939,8 @@ function getReceivedCount() {
     const base = getBaseFilteredOrders();
 
     return base.filter(order =>
+        order.status !== "distributed" &&
+        order.status !== "ready_to_distribute" && // 🔥 مهم
         order.warehouses?.every(w => w.packed === true)
     ).length;
 }
@@ -2295,9 +2269,9 @@ newOrderInput.addEventListener("input", function () {
         updateSearch();
 
         // يبقي المؤشر داخل input
-        setTimeout(() => {
-            this.focus();
-        }, 0);
+        // setTimeout(() => {
+        //     this.focus();
+        // }, 0);
 
         return;
     }
@@ -2425,7 +2399,7 @@ document.getElementById("historyModal").addEventListener("click", function (e) {
     }
 });
 function openEditOrder(orderNo) {
-
+    const role = localStorage.getItem("userRole");
     const order = allOrders.find(o => o.orderNo === orderNo);
     if (!order) return;
     if (order.status === "canceled_before_delivery") {
@@ -2934,7 +2908,7 @@ function showDashboardHome() {
     document.getElementById("newOrderTab").classList.add("hidden");
     document.getElementById("teamNotesTab").classList.add("hidden");
         document.getElementById("dsh").style.display="block";
-
+    document.getElementById("readyTab").classList.add("hidden");
     document.querySelector(".kpis").classList.remove("hidden");
     document.querySelector(".warehouse-container").classList.remove("hidden");
     document.querySelector(".sales-order").classList.remove("hidden");
@@ -3029,7 +3003,7 @@ function getOrderDate(order) {
 window.DateFilter = function () {
     selectedDateFilter = document.getElementById("ordersDateFilter").value || null;
 
-    visibleCount = 300;
+    visibleCount = 1000;
     renderRecentOrders();
 };
 
