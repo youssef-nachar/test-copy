@@ -331,15 +331,16 @@ Export Excel
                         <div class="sub-number"></div>
                     </div>
                 </div>
+                <div class="kpi" onclick="showOrderDetails('ready')">
+    <div>Ready to Distribute</div>
+    <div id="ready" class="value" style="color:#3b82f6">0</div>
+</div>
                 <div class="kpi" onclick="showOrderDetails('distributed')">
                     <div>Distributed</div>
                     <div id="distributed" class="value success">0</div>
                 </div>
                 
-<div class="kpi" onclick="showOrderDetails('ready')">
-    <div>Ready to Distribute</div>
-    <div id="ready" class="value" style="color:#3b82f6">0</div>
-</div>
+
                 <div class="kpi" onclick="showOrderDetails('canceled')">
                     <div>Canceled Before Delivery</div>
                     <div id="canceled" class="value" style="color:#f76666">0</div>
