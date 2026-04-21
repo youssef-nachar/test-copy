@@ -62,6 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
             input.addEventListener("blur", () => {
                 if (!document.getElementById("editOrderModal").classList.contains("hidden")) return;
 
+// setTimeout(() => { input.focus();}, 300);       
      });
         });
     }
@@ -351,8 +352,12 @@ function updateSearch() {
 
         let statusText = "";
 
-        if (order.status === "distributed") {
+        if ( order.status === "distributed"){
             statusText = `<span style="color:#22c55e;font-weight:600;">Distributed</span>`;
+        }
+        else if(order.status ==="ready_to_distribute"){
+              statusText = `<span style="color:#3b82f6;font-weight:600;">ready to Distributed</span>`;
+
         }
         else if (order.status === "canceled") {
             statusText = `<span style="color:#f59e0b;font-weight:600;">canceled</span>`;
@@ -566,9 +571,13 @@ function getWarehouseBadgeColor(order, warehouse) {
         return "#ef4444";
     }
 
-    if (order.status === "distributed") {
-        return "#22c55e";
-    }
+if (order.status === "distributed") {
+    return "#22c55e";
+}
+
+if (order.status === "ready_to_distribute") {
+    return "#3b82f6"; // 🔵 أزرق
+}
 
     if (order.status === "partial") {
         return warehouse.packed ? "#22c55e" : "#f59e0b";
@@ -580,14 +589,6 @@ function getWarehouseBadgeColor(order, warehouse) {
 
     return "#7c2d12";
 }
-
-// إغلاق القائمة عند الضغط خارجها  
-
-// document.addEventListener("click", () => {
-//     document.getElementById("quickDateMenu").classList.add("hidden");
-// });
-
-
 window.QuickDate = function (type) {
     const from = document.getElementById("dateFrom");
     const to = document.getElementById("dateTo");
@@ -708,7 +709,8 @@ let lastKPI = {
     total: 0,
     completed: 0,
     pending: 0,
-    distributed: 0
+    distributed: 0,
+    ready: 0 // 🔥 جديد
 };
 
     function getEffectiveDate(order) {
@@ -744,13 +746,7 @@ function updateDashboard() {
         order.status = resolveOrderStatus(order); // الحالة الأصلية
 
     });
-const readyToday = todayOrders.filter(o =>
-    o.status === "ready_to_distribute"
-);
 
-const readyBacklog = accumulatedOrders.filter(o =>
-    o.status === "ready_to_distribute"
-);
 
     // ================= TODAY =================
     const CANCELED_START_DATE = "2026-02-02";
@@ -767,8 +763,12 @@ const readyBacklog = accumulatedOrders.filter(o =>
 
         return dateToCheck >= CANCELED_START_DATE;
     });
-    const distributedToday = todayOrders.filter(o =>
-    o.status === "distributed" || o.status === "ready_to_distribute"
+const distributedToday = todayOrders.filter(o =>
+    o.status === "distributed"
+);
+
+const readyToday = todayOrders.filter(o =>
+    o.status === "ready_to_distribute"
 );
     const completedToday = todayOrders.filter(o => o.status === "completed");
     const pendingToday = todayOrders.filter(o =>
@@ -786,12 +786,17 @@ const readyBacklog = accumulatedOrders.filter(o =>
         o.status === "pending" || o.status === "partial"
     );
 const distributedBacklog = accumulatedOrders.filter(o =>
-    o.status === "distributed" || o.status === "ready_to_distribute"
+    o.status === "distributed"
+);
+
+const readyBacklog = accumulatedOrders.filter(o =>
+    o.status === "ready_to_distribute"
 );
     // ================= DISPLAY =================
 
     updateKPINumber("total", todayOrders.length);
     updateKPINumber("distributed", distributedToday.length);
+    updateKPINumber("ready", readyToday.length);
     updateKPINumber("canceled", canceledToday.length);
 
     updateKPIWithBacklog("completed", completedToday.length, completedBacklog.length);
@@ -860,8 +865,8 @@ function renderWarehouseBreakdown(orders) {
 
     orders.forEach(order => {
 
-        const isDistributed = order.status === "distributed";
-
+const isDistributed = order.status === "distributed";
+const isReady = order.status === "ready_to_distribute";
         const seenWH = new Set();
 
         order.warehouses.forEach(w => {
@@ -883,10 +888,15 @@ function renderWarehouseBreakdown(orders) {
 
             warehouseMap[base].t++;
 
-            if (isDistributed) {
-                warehouseMap[base].d++;
-                grandTotal.d++;
-            }
+   if (isDistributed) {
+    warehouseMap[base].d++;
+    grandTotal.d++;
+}
+else if (isReady) {
+    // 🔥 إذا بدك تحسبه مع delivered أو تعمل column جديد
+    warehouseMap[base].d++; // أو تعمل ready column لاحقاً
+    grandTotal.d++;
+}
             else if (order.status === "completed") {
                 warehouseMap[base].c++;
                 grandTotal.c++;
@@ -943,7 +953,10 @@ ${Object.entries(warehouseMap).map(([wh, v]) => {
 function renderMultiWHOrders(orders) {
     const m = orders.filter(x => (x.warehouses?.length || 0) > 1);
     const completedOrders = m.filter(x => x.status === "completed");
-    const distributedOrders = m.filter(x => x.status === "distributed");
+const distributedOrders = m.filter(x =>
+    x.status === "distributed" ||
+    x.status === "ready_to_distribute"
+);
     const pendingOrders = m.filter(x => x.status === "pending" || x.status === "partial")
         .filter(o => !completedOrders.includes(o) && !distributedOrders.includes(o));
 
@@ -965,8 +978,10 @@ ${pendingOrders.length}</a>
 function renderSingleWHOrders(orders) {
     const s = orders.filter(x => x.warehouseCount === 1);
     const completedOrders = s.filter(x => x.status === "completed");
-    const distributedOrders = s.filter(x => x.status === "distributed");
-    const pendingOrders = s.filter(x => x.status === "pending")
+const distributedOrders = s.filter(x =>
+    x.status === "distributed" ||
+    x.status === "ready_to_distribute"
+);    const pendingOrders = s.filter(x => x.status === "pending")
         .filter(o => !completedOrders.includes(o) && !distributedOrders.includes(o));
 
     singleWHTable.innerHTML = `  
@@ -1025,7 +1040,11 @@ function showOrderDetails(type) {
     if (type === "distributed") {
         todayFiltered = todayOrders.filter(o => o.status === "distributed");
     }
-
+if (type === "ready") {
+    todayFiltered = todayOrders.filter(o =>
+        o.status === "ready_to_distribute"
+    );
+}
     if (type === "total") {
         todayFiltered = todayOrders;
     }
@@ -1098,10 +1117,9 @@ let lastType = null;
 
                 let statusText =
                     order.status === "canceled" ? "Canceled" :
-                        order.status === "distributed" || order.status === "ready_to_distribute" ? "Distributed" :
-                            order.status === "completed" ? "In-Packing" :
-                                order.status === "partial" ? "Partial" :
-                                    "Pending";
+                    order.status === "distributed" ? "Distributed"  : order.status === "ready_to_distribute"  ? "Ready to Distribute" :
+                    order.status === "completed" ? "In-Packing" :
+                     order.status === "partial" ? "Partial" : "Pending";
 
                 return `
                 <tr>
@@ -1249,7 +1267,12 @@ let lastType = null;
 
         if (type === "completed") o = o.filter(x => x.status === "completed");
         if (type === "pending") o = o.filter(x => x.status === "pending" || x.status === "partial");
-        if (type === "distributed") o = o.filter(x => x.status === "distributed");
+if (type === "distributed") {
+    o = o.filter(x =>
+        x.status === "distributed" ||
+        x.status === "ready_to_distribute"
+    );
+}
         if (type === "total") o = o; // all filtered orders  
 
         displayOrders(o, warehouse === 'all' ? 'All Warehouses' : `Warehouse: ${warehouse}`);
@@ -1333,11 +1356,8 @@ function displayOrders(orders, title = "Order Details") {
         else if (order.status === "canceled_before_delivery") {
             statusText = "Canceled Before Delivery";
         }
-        else if (order.status === "distributed") {
-            statusText = "Distributed";
-        }
-        if (order.status === "distributed" || order.status === "ready_to_distribute") {
-    return new Date(distributedOrdersMap[order.orderNo]?.date || order.readyTime || order.date);
+else if (order.status === "distributed" || order.status === "ready_to_distribute") {
+    statusText = "Distributed";
 }
         else if (order.status === "completed") {
             statusText = "In-Packing";
@@ -1352,58 +1372,55 @@ function displayOrders(orders, title = "Order Details") {
         <tr>  
           <td>${order.orderNo}</td>  
           <td>  
-            ${order.warehouses.map(w => {
-            // تحديد لون الـ badge لكل warehouse  
-            let color, text;
+${order.warehouses.map(w => {
 
-            if (order.status === "distributed") {
-                color = "#22c55e";
-                text = "Distributed";
-            } 
-        
-else if (w.packed) {
-                color = "#22c55e";
-                text = "In-Packing";
-            } 
-       
-        else {
-                color = "#7c2d12";
-                text = "Pending";
-            }
+    let color, text;
 
-            let tooltipText = "";
+    if (order.status === "distributed" || order.status === "ready_to_distribute") {
+        color = "#22c55e";
+        text = "Distributed";
+    }
+    else if (w.packed) {
+        color = "#22c55e";
+        text = "In-Packing";
+    } 
+    else {
+        color = "#7c2d12";
+        text = "Pending";
+    }
 
-            if (order.status === "distributed") {
-                tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-            }
-            else if (w.packed) {
-                tooltipText = `Received at Packing Station: ${w.receivedTime || "-"}`;
-            }
-            else {
-                tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
-            }
+    let tooltipText = "";
 
-            return `  
-<div class="tooltip-wrapper">  
-    <span style="  
-        display:inline-block;  
-        margin:2px;  
-        padding:4px 8px;  
-        border-radius:6px;  
-        font-size:12px;  
-        font-weight:600;  
-        background:${color};  
-        color:black;  
-        cursor:pointer;  
-    ">  
-        ${w.base.toUpperCase()}  
-    </span>  
-    <div class="tooltip-box">  
-        ${tooltipText}  
-    </div>  
-</div>  
-`;
-        }).join("")}  
+    if (order.status === "distributed") {
+        tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
+    }
+    else if (w.packed) {
+        tooltipText = `Received at Packing Station: ${w.receivedTime || "-"}`;
+    }
+    else {
+        tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
+    }
+
+    return `
+    <div class="tooltip-wrapper">  
+        <span style="
+            display:inline-block;  
+            margin:2px;  
+            padding:4px 8px;  
+            border-radius:6px;  
+            font-size:12px;  
+            font-weight:600;  
+            background:${color};  
+            color:black;  
+            cursor:pointer;  
+        ">  
+            ${(w.base || "UNKNOWN").toUpperCase()}  
+        </span>  
+        <div class="tooltip-box">  
+            ${tooltipText}  
+        </div>  
+    </div>`;
+}).join("")}
 <td style="font-weight:600; color:#9ca3af">
 
 ${statusText}
@@ -1629,58 +1646,18 @@ document.addEventListener("mouseout", function (e) {
     }
 });
 let recentOrders = [];
-// function forceInputFocus() {
-
-//     const warehouse = localStorage.getItem("currentWarehouse");
-
-//     const input = warehouse === "Packing Station"
-//         ? document.getElementById("newOrderSearch")
-//         : document.getElementById("newOrderNumber");
-
-//     if (!input) return;
-
-//     setTimeout(() => {
-//         input.focus();
-//     }, 200);
-
-// }
-
-// =============================
-// =============================
 function showNewOrderTab() {
 document.getElementById("dashboardHeader").style.display="none"
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    if (currentWarehouse === "Packing Station") {
-
-        // ✅ إضافة بدون حذف المحتوى القديم
-        
+    if (currentWarehouse === "Packing Station") {        
         const searchInput = document.getElementById("newOrderSearch");
-
-        // if (searchInput) { // ✅ حماية فقط بدون تغيير سلوك
-        //     setTimeout(() => {
-        //         searchInput.focus();
-        //     }, 200);
-
-        //     searchInput.addEventListener("blur", () => {
-
-        //         if (!document.getElementById("editOrderModal")?.classList.contains("hidden")) return;
-
-        //         setTimeout(() => searchInput.focus(), 100);
-
-        //     });
-        // }
-
-        // document.getElementById("save").style.display = "none";
         document.getElementById("hashtag").style.display = "none";
         document.getElementById("newOrderNumber").style.display = "none";
-
-
     }
     document.querySelectorAll(".main > div").forEach(div => {
         if (div.id !== "newOrderTab") div.classList.add("hidden");
     });
-
     document.getElementById("newOrderTab").classList.remove("hidden");
 
     listenToOrders(); // 🔥 تحديث الطلبات دائماً
@@ -1701,8 +1678,6 @@ document.getElementById("dashboardHeader").style.display="none"
     }
 
     setTodayForNewOrder();
-
-    // forceInputFocus()
 }
 window.toggleMenu = function (e) {
     e.stopPropagation();
@@ -1735,8 +1710,6 @@ function simpleEncrypt(text) {
 function simpleDecrypt(text) {
     return atob(text);
 }
-
-// =============================
 function saveNewOrder() {
 
     const orderNo = document
@@ -1908,25 +1881,30 @@ function toggleReceivedFilter() {
 
     renderRecentOrders();
 }
-
-
-
 function getBaseFilteredOrders() {
 
     const currentWarehouse = localStorage.getItem("currentWarehouse");
 
-    return recentOrders.filter(order => {
+    const DEFAULT_START = "2026-02-01"; // 🔥 هنا
 
-        // Date Filter
-        if (selectedDateFilter) {
-            const d = new Date(order.createdAt || order.date);
+    return recentOrders.filter(order => {
 
         const orderDate = getOrderDate(order);
 
-            if (orderDate !== selectedDateFilter) return false;
-        }
+        // 🔥 فلترة من تاريخ معين
+        if (orderDate < DEFAULT_START) return false;
+if (selectedDateFilter) {
+    const orderDate = getOrderDate(order);
 
-        // Packing rule
+    const keepOld =
+        order.status === "pending" ||
+        order.status === "partial" ||
+        order.status === "completed"; // in-packing
+
+    if (orderDate !== selectedDateFilter && !keepOld) {
+        return false;
+    }
+}
         if (currentWarehouse === "Packing Station" && order.status === "distributed") {
             return false;
         }
@@ -1960,7 +1938,7 @@ function renderRecentOrders() {
     }
     if (role !== "packing" && role !== "manager") {
         const pendingBtn = document.getElementById("pendingToggleBtn");
-
+        
         if (pendingBtn) pendingBtn.style.display = "none";
         if (pendingBtn) {
             const count = getPendingCount();
@@ -1977,20 +1955,25 @@ function renderRecentOrders() {
     container.innerHTML = "";
 
 const currentWarehouse = localStorage.getItem("currentWarehouse");
-// const role = localStorage.getItem("userRole");
-
 const sortedOrders = [...recentOrders].sort((a, b) => {
     return new Date(b.createdAt) - new Date(a.createdAt);
 });
 
-const filteredOrders = sortedOrders.filter(order => {
+let filteredOrders = getBaseFilteredOrders();
+filteredOrders = filteredOrders.filter(order => {
 
-    if (selectedDateFilter) {
-        const orderDate = getOrderDate(order);
-        if (orderDate !== selectedDateFilter) return false;
+if (selectedDateFilter) {
+    const orderDate = getOrderDate(order);
+
+    const keepOld =
+        order.status === "pending" ||
+        order.status === "partial" ||
+        order.status === "completed"; // In-Packing
+
+    if (orderDate !== selectedDateFilter && !keepOld) {
+        return false;
     }
-
-    // 🔥 إخفاء distributed لكل users ما عدا manager
+}
     if (role == "packing" && order.status === "distributed") {
         return false;
     }   if (role == "manager" && order.status === "distributed") {
@@ -2029,11 +2012,13 @@ const filteredOrders = sortedOrders.filter(order => {
 `;
 
 
-        const statusColor = order.status === "distributed" ? "#22c55e" :
-            order.status === "completed" ? "#22c55e" :
-                order.status === "partial" ? "#f59e0b" :
-                    order.status === "canceled" ? "#ef4444" :
-                        "#f59e0b";
+const statusColor =
+    order.status === "distributed" ? "#22c55e" :
+    order.status === "ready_to_distribute" ? "#3b82f6" : // 🔥 أزرق واضح
+    order.status === "completed" ? "#22c55e" :
+    order.status === "partial" ? "#f59e0b" :
+    order.status === "canceled" ? "#ef4444" :
+    "#f59e0b";
 
         card.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:10px;">
@@ -2083,6 +2068,8 @@ const filteredOrders = sortedOrders.filter(order => {
         Edit
     </button>
 
+<div style="display:flex;align-items:center;gap:6px">
+
     <span style="
         background:${statusColor};
         padding:5px 12px;
@@ -2094,6 +2081,24 @@ const filteredOrders = sortedOrders.filter(order => {
     ">
         ${order.status}
     </span>
+
+    ${order.status === "canceled" ? `
+        <button onclick="reopenOrder('${order.orderNo}')"
+        style="
+            background:#22c55e;
+            border:none;
+            padding:5px 10px;
+            border-radius:6px;
+            cursor:pointer;
+            font-size:11px;
+            font-weight:700;
+            color:black;
+        ">
+            Reopen
+        </button>
+    ` : ""}
+
+</div>
 
 </div>
             </div>
@@ -2992,6 +2997,24 @@ function autoMoveToPacking() {
 
 }
 function getOrderDate(order) {
+
+    // 🔥 إذا الطلب في packing → استخدم وقت الدخول للباكينغ
+    if (order.status === "in-packing" && order.packingTime) {
+        const d = new Date(order.packingTime);
+        return d.getFullYear() + "-" +
+            String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0");
+    }
+
+    // 🔥 إذا مكتمل → ممكن تستخدم packingReceivedTime
+    if (order.status === "completed" && order.packingReceivedTime) {
+        const d = new Date(order.packingReceivedTime);
+        return d.getFullYear() + "-" +
+            String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0");
+    }
+
+    // 🔥 الافتراضي
     const d = new Date(order.createdAt || order.date);
     return d.getFullYear() + "-" +
         String(d.getMonth() + 1).padStart(2, "0") + "-" +
@@ -3340,7 +3363,7 @@ function updateFooterStats() {
 
     let pending = allOrders.filter(o => o.status === "pending").length;
 
-    let distributed = allOrders.filter(o => o.status === "distributed").length;
+    let distributed = allOrders.filter(o => o.status === "distributed" ||  o.status === "ready_to_distribute").length
 
     document.getElementById("footerTotalOrders").textContent = total;
     document.getElementById("footerPendingOrders").textContent = pending;
@@ -3499,9 +3522,9 @@ function initReadyToDistribute() {
         // مثال pattern
         if (!/^#M\d{5}$/.test(value)) return;
 
-        moveToReady(value);
+        // moveToReady(value);
 
-        this.value = "";
+        // this.value = "";
     });
 }
 function moveToReady(orderNo) {
@@ -3542,7 +3565,7 @@ function renderReadyOrders() {
 
     const container = document.getElementById("readyOrdersTable");
 
-    const readyOrders = allOrders.filter(o => 
+    const readyOrders = allOrders.filter(o =>
         o.readyToDistribute || o.status === "ready_to_distribute"
     );
 
@@ -3552,58 +3575,363 @@ function renderReadyOrders() {
     }
 
     container.innerHTML = `
-        <table>
+        <table style="width:100%;border-collapse:collapse;text-align:center">
             <tr>
-                <th>Order #</th>
+                <th>Order</th>
+                <th>Boxes</th>
+                <th>CBM</th>
+                <th>Note</th>
                 <th>Status</th>
             </tr>
 
             ${readyOrders.map(o => `
                 <tr>
                     <td>${o.orderNo}</td>
-                    <td style="color:#22c55e;font-weight:600">
-                        Ready To Distribute
-                    </td>
+
+<td>${o.boxes || 0}</td>
+<td>${o.cbm || 0}</td>
+<td style="font-size:12px;color:#38bdf8">
+    ${o.emailOrComment || "-"}
+</td>
+<td style="color:#22c55e;font-weight:600">
+    Ready
+</td>
+
+<td>
+    <button onclick="openReadyEditModal('${o.orderNo}', ${o.boxes || 0}, ${o.cbm || 0})"
+    style="
+        background:#3b82f6;
+        border:none;
+        padding:5px 10px;
+        border-radius:6px;
+        color:white;
+        font-weight:600;
+        cursor:pointer;
+    ">
+        Edit
+    </button>
+</td>
                 </tr>
             `).join("")}
+
         </table>
     `;
 }
-
 function showReadyToDistributeTab() {
+
     document.getElementById("dashboardHeader").style.display = "none";
 
     const container = document.getElementById("readyTab");
 
     container.innerHTML = `
-        <div style="max-width:500px;margin:auto">
+    <div style="
+        display:grid;
+        grid-template-columns: 1fr 1.5fr;
+        gap:20px;
+        padding:20px;
+        max-width:1200px;
+        margin:auto;
+    ">
 
-            <h3 style="margin-bottom:10px">Ready To Distribute</h3>
+        <!-- LEFT PANEL (INPUTS) -->
+        <div style="
+            background:#0f172a;
+            border:1px solid #1f2937;
+            padding:18px;
+            border-radius:16px;
+            height:fit-content;
+            position:sticky;
+            top:20px;
+        ">
+
+            <h2 style="margin-bottom:15px;font-size:18px;color:#38bdf8">
+                🚚 Ready To Distribute
+            </h2>
 
             <input id="readyOrderInput"
-                placeholder="Scan / Enter Order #"
+                placeholder="Order #"
+                style="width:100%;padding:10px;margin-bottom:10px;
+                border-radius:10px;border:1px solid #1f2937;
+                background:#020617;color:white" />
+
+            <input id="readyBoxesInput"
+                placeholder="Boxes Count"
+                type="number"
+                style="width:100%;padding:10px;margin-bottom:10px;
+                border-radius:10px;border:1px solid #1f2937;
+                background:#020617;color:white" />
+
+            <input id="readyCBMInput"
+                placeholder="CBM"
+                type="number"
+                step="0.01"
+                style="width:100%;padding:10px;margin-bottom:10px;
+                border-radius:10px;border:1px solid #1f2937;
+                background:#020617;color:white" />
+
+            <input id="readyEmailInput"
+                placeholder="Comment / Email Notification"
+                style="width:100%;padding:10px;margin-bottom:10px;
+                border-radius:10px;border:1px solid #1f2937;
+                background:#020617;color:white" />
+
+            <button onclick="moveToReadyFromInputs()"
                 style="
                     width:100%;
                     padding:12px;
+                    background:linear-gradient(135deg,#22c55e,#16a34a);
+                    border:none;
                     border-radius:10px;
-                    border:1px solid #1f2937;
-                    background:#020617;
+                    font-weight:700;
                     color:white;
-                    font-size:16px;
-                " />
+                    cursor:pointer;
+                    box-shadow:0 0 12px #22c55e55;
+                ">
+                ➕ Add to Ready List
+            </button>
 
-            <div id="readyOrdersTable" style="margin-top:15px"></div>
+            <button onclick="exportReadyToExcel()"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin-top:10px;
+                    background:#0ea5e9;
+                    border:none;
+                    border-radius:10px;
+                    font-weight:600;
+                    color:white;
+                    cursor:pointer;
+                ">
+                ⬇ Export to Excel
+            </button>
 
         </div>
+
+        <!-- RIGHT PANEL (TABLE) -->
+        <div style="
+            background:#0f172a;
+            border:1px solid #1f2937;
+            padding:18px;
+            border-radius:16px;
+            overflow:auto;
+            min-height:70vh;
+        ">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:10px;
+            ">
+                <h3 style="color:white;margin:0">
+                    📦 Ready Orders
+                </h3>
+            </div>
+
+            <div id="readyOrdersTable"></div>
+
+        </div>
+
+    </div>
     `;
 
-    // إخفاء باقي التابات
     document.querySelectorAll(".main > div").forEach(div => {
         if (div.id !== "readyTab") div.classList.add("hidden");
     });
 
     container.classList.remove("hidden");
 
-    initReadyToDistribute();
     renderReadyOrders();
+}
+function moveToReadyFromInputs() {
+const emailOrComment = document.getElementById("readyEmailInput").value.trim();
+    const orderNo = document.getElementById("readyOrderInput").value.trim().toUpperCase();
+    const boxes = document.getElementById("readyBoxesInput").value.trim();
+    const cbm = document.getElementById("readyCBMInput").value.trim();
+
+    if (!orderNo) return;
+
+    if (boxes === "" || cbm === "") {
+        alert("Please enter Boxes and CBM before saving");
+        return;
+    }
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const order = child.val();
+
+            if (order.orderNo === orderNo) {
+
+ update(ref(db, "orders/" + child.key), {
+    readyToDistribute: true,
+    status: "ready_to_distribute",
+    boxes: Number(boxes),
+    cbm: Number(String(cbm).replace(",", ".")),
+    emailOrComment: emailOrComment, // ✅ الجديد
+    readyTime: new Date().toISOString(),
+    history: [
+        ...(order.history || []),
+        {
+            action: "ready_to_distribute",
+            date: new Date().toISOString(),
+            by: "Packing Station",
+            boxes,
+            cbm,
+            emailOrComment // optional في التاريخ
+        }
+    ]
+}).then(() => {
+
+                    // ✅ تحديث محلي فوري
+                    const localOrder = allOrders.find(o => o.orderNo === orderNo);
+
+                    if (localOrder) {
+                        localOrder.readyToDistribute = true;
+                        localOrder.status = "ready_to_distribute";
+                        localOrder.boxes = Number(boxes);
+                        localOrder.cbm = Number(cbm);
+                    }
+
+                    // ✅ إعادة الرسم مباشرة
+                    renderReadyOrders();
+                });
+
+            }
+
+        });
+
+    });
+
+    // تنظيف الحقول
+    document.getElementById("readyOrderInput").value = "";
+    document.getElementById("readyBoxesInput").value = "";
+    document.getElementById("readyCBMInput").value = "";
+    document.getElementById("readyEmailInput").value = "";
+}
+function reopenOrder(orderNo) {
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const order = child.val();
+
+            if (order.orderNo === orderNo) {
+
+                update(ref(db, "orders/" + child.key), {
+
+                    status: "pending",
+
+                    history: [
+                        ...(order.history || []),
+                        {
+                            action: "reopened",
+                            date: new Date().toISOString(),
+                            by: localStorage.getItem("currentWarehouse")
+                        }
+                    ]
+
+                });
+
+            }
+
+        });
+
+    });
+
+}
+
+let editingReadyOrderNo = null;
+
+function openReadyEditModal(orderNo, boxes, cbm) {
+
+    editingReadyOrderNo = orderNo;
+
+    document.getElementById("editBoxes").value = boxes;
+    document.getElementById("editCBM").value = cbm;
+
+    document.getElementById("readyEditModal").classList.remove("hidden");
+}
+function saveReadyEdit() {
+
+    const boxes = document.getElementById("editBoxes").value;
+    const cbm = document.getElementById("editCBM").value;
+    const comment = document.getElementById("editOrderComment").value.trim();
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const order = child.val();
+
+            if (order.orderNo === editingReadyOrderNo) {
+
+                update(ref(db, "orders/" + child.key), {
+                    boxes: Number(boxes),
+                    cbm: Number(cbm)
+                }).then(() => {
+
+                    // 🔥 الحل المهم:
+                    const updatedOrder = allOrders.find(o => o.orderNo === editingReadyOrderNo);
+
+                    if (updatedOrder) {
+                        updatedOrder.boxes = Number(boxes);
+                        updatedOrder.cbm = Number(cbm);
+                    }
+
+                    renderReadyOrders(); // 🔥 تحديث مباشر بدون refresh
+
+                });
+
+            }
+
+        });
+
+    });
+
+    document.getElementById("readyEditModal").classList.add("hidden");
+}
+document.getElementById("readyEditModal").addEventListener("click", (e) => {
+    if (e.target.id === "readyEditModal") {
+        e.target.classList.add("hidden");
+    }
+});
+function exportReadyToExcel() {
+
+    const readyOrders = allOrders.filter(o =>
+        o.readyToDistribute || o.status === "ready_to_distribute"
+    );
+
+    if (!readyOrders.length) {
+        alert("No data to export");
+        return;
+    }
+
+    let csv = "Order,Boxes,CBM,Status\n";
+
+    readyOrders.forEach(o => {
+        csv += `${o.orderNo},${o.boxes || 0},${o.cbm || 0}, ${o.note || 0},Ready\n`;
+    });
+
+    // إنشاء الملف
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Ready_To_Distribute.csv");
+    link.style.display = "none";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
