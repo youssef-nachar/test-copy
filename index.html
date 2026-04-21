@@ -55,10 +55,11 @@
              
                     <a href="./p&c.html"> Warehouses</a>
                   <a href="#" onclick="showNewOrderTab()"> New Orders</a>
+                <a href"#" id="reade" onclick="showReadyToDistributeTab()">Ready To Distribute</a> 
+
             <a href="#" id="teamNotesBtn" style="display:none;" onclick="openTeamNotesTab()">
                 Team Notes
             </a>
-                <a href"#"" onclick="showReadyToDistributeTab()">Ready To Distribute</a> 
                 <a href="#" onclick="signOut()" style="color:#ef4444">Logout</a>
         </aside>
 
@@ -334,6 +335,11 @@ Export Excel
                     <div>Distributed</div>
                     <div id="distributed" class="value success">0</div>
                 </div>
+                
+<div class="kpi" onclick="showOrderDetails('ready')">
+    <div>Ready to Distribute</div>
+    <div id="ready" class="value" style="color:#3b82f6">0</div>
+</div>
                 <div class="kpi" onclick="showOrderDetails('canceled')">
                     <div>Canceled Before Delivery</div>
                     <div id="canceled" class="value" style="color:#f76666">0</div>
@@ -453,6 +459,7 @@ Export Excel
                 <button class="cancel-edit-btn" onclick="closeEditModal()">
                     Cancel
                 </button>
+
 
             </div>
 
@@ -579,33 +586,42 @@ color:white;
 
         </div>
     -->
-<footer>
-       <!-- 🔥 SYSTEM BADGES (NEW: Role + Access + Theme) -->
-        <div class="footer-system">
+<div id="readyEditModal" class="hidden"
+style="position:fixed;inset:0;background:#000000aa;
+display:flex;align-items:center;justify-content:center;">
 
-            <div class="system-badge">
-                <i class="fa-solid fa-user-shield"></i>
-                <div>
-                    <span id="footerUserRole">User</span>
-                    <p>Role</p>
-                </div>
-            </div>
+    <div style="background:#0f172a;padding:20px;border-radius:12px;width:300px">
 
-            <div class="system-badge">
-                <i class="fa-solid fa-warehouse"></i>
-                <div>
-                    <span id="footerWarehouseAccess">All Warehouses</span>
-                    <p>Access Level</p>
-                </div>
-            </div>
+        <h3 style="margin-bottom:10px">Edit Order</h3>
+BOX
+        <input id="editBoxes"
+        type="number"
+        placeholder="Boxes"
+        style="width:100%;padding:10px;margin-bottom:10px;
+        border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+CBM
+        <input id="editCBM" step="0.01"
+        type="number" step="0.01"
+        placeholder="CBM"
+        style="width:100%;padding:10px;margin-bottom:10px;
+        border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
+       
+    comment
+       <input id="editCBM"
+        type="text"
+        placeholder="comment"
+        style="width:100%;padding:10px;margin-bottom:10px;
+        border-radius:8px;border:1px solid #1f2937;background:#020617;color:white">
 
-        </div>
+        <button onclick="saveReadyEdit()"
+        style="width:100%;padding:10px;
+        background:#22c55e;border:none;border-radius:8px;
+        font-weight:600">
+            Save
+        </button>
 
-        <div class="footer-bottom">
-            <p>© 2026 MY HOLDAL System. All rights reserved.</p>
-        </div>
-
-    </footer> 
+    </div>
+</div>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script type="module">
 
