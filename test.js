@@ -3696,6 +3696,7 @@ function showReadyToDistributeTab() {
             </button>
 <button onclick="distributeSelectedOrders()"
 style="
+width:100%;
     padding:10px 16px;
     background:linear-gradient(135deg,#22c55e,#16a34a);
     border:none;
@@ -3703,7 +3704,7 @@ style="
     color:white;
     font-weight:700;
     cursor:pointer;
-    margin-bottom:10px;
+    margin-top:10px;
 ">
     🚚 Distribute Selected
 </button>
