@@ -1972,11 +1972,15 @@ function openEditOrder(orderNo) {
     document.getElementById("editOrderModal").classList.remove("hidden");
 const orderInput = document.getElementById("editOrderNumber");
 
-    if (role === "manager") {
-        orderInput.readOnly = false;
-    } else {
-        orderInput.readOnly = true;
-    }
+const deleteBtn = document.getElementById("deleteOrderBtn");
+
+if (role === "manager") {
+    orderInput.readOnly = false;
+    deleteBtn.style.display = "block"; // ✅ يظهر
+} else {
+    orderInput.readOnly = true;
+    deleteBtn.style.display = "none"; // ❌ مخفي
+}
     window.editingOrderNo = orderNo;
     setTimeout(() => {
         document.getElementById("editOrderNumber").focus();
@@ -1985,6 +1989,43 @@ const orderInput = document.getElementById("editOrderNumber");
 function closeEditModal() {
     document.getElementById("editOrderModal").classList.add("hidden");
 }
+function deleteOrder() {
+
+    const role = localStorage.getItem("userRole");
+
+    if (role !== "manager") {
+        alert("Not allowed");
+        return;
+    }
+
+    if (!confirm("⚠️ Delete this order permanently?")) return;
+
+    const ordersRef = ref(db, "orders");
+
+    get(ordersRef).then(snapshot => {
+
+        snapshot.forEach(child => {
+
+            const data = child.val();
+
+            if (data.orderNo === window.editingOrderNo) {
+
+                remove(ref(db, "orders/" + child.key))
+                    .then(() => {
+                        closeEditModal();
+                        renderRecentOrders();
+                        updateDashboard();
+                    });
+
+            }
+
+        });
+
+    });
+
+}
+document.getElementById("deleteOrderBtn")
+    .addEventListener("click", deleteOrder);
 function saveEditedOrder() {
 
     const newOrderNo = document.getElementById("editOrderNumber").value.trim();
@@ -2902,20 +2943,6 @@ function toggleCommentsFilter() {
 
     renderRecentOrders(); // 🔥 إعادة رسم
 }
-function updateFooterStats() {
-    if (!allOrders) return;
-
-    let total = allOrders.length;
-
-    let pending = allOrders.filter(o => o.status === "pending").length;
-
-  let distributed = allOrders.filter(o => 
-    o.status === "distributed"
-).length;
-    document.getElementById("footerTotalOrders").textContent = total;
-    document.getElementById("footerPendingOrders").textContent = pending;
-    document.getElementById("footerDistributedOrders").textContent = distributed;
-}
 
 let teamNotes = JSON.parse(localStorage.getItem("teamNotes") || "{}");
 
@@ -3637,7 +3664,6 @@ function showReadyToDistributeTab() {
             <h2 style="margin-bottom:15px;font-size:18px;color:#38bdf8">
                 🚚 Ready To Distribute
             </h2>
-
             <input id="readyOrderInput"
                 placeholder="Order #"
                 style="width:100%;padding:10px;margin-bottom:10px;
@@ -3736,6 +3762,8 @@ width:100%;
         </div>
 
     </div>
+<div id="batchesTable" style="margin-top:20px;"></div>
+
     `;
 
     document.querySelectorAll(".main > div").forEach(div => {
@@ -3756,6 +3784,8 @@ function distributeSelectedOrders() {
         return;
     }
 
+    const currentBatch = getCurrentBatch(); // ✅ هنا الجديد
+
     const ordersRef = ref(db, "orders");
 
     get(ordersRef).then(snapshot => {
@@ -3768,32 +3798,26 @@ function distributeSelectedOrders() {
 
                 if (order.orderNo === cb.value) {
 
-                    const orderNoLocal = order.orderNo;
-
                     update(ref(db, "orders/" + child.key), {
                         status: "distributed",
+                        batch: {
+                        name: currentBatch,
+                        date: new Date().toISOString().split("T")[0]},                        
                         readyToDistribute: false,
+                        batch: currentBatch, // ✅ مهم جداً
                         distributedTime: new Date().toISOString(),
                         history: [
                             ...(order.history || []),
                             {
                                 action: "distributed",
                                 date: new Date().toISOString(),
-                                by: "Distribution"
+                                by: "Distribution",
+                                batch: currentBatch
                             }
                         ]
                     }).then(() => {
-
-                        // ✅ هون الصح
-const today = new Date().toISOString().split("T")[0];
-
-distributedOrdersMap[orderNoLocal] = {
-    date: today,
-    company: "Manual"
-};
                         renderReadyOrders();
-                        updateDashboard();
-
+                        renderBatchesTable(); // ✅ نرسم الجدول الجديد
                     });
 
                 }
@@ -3908,9 +3932,81 @@ function reopenOrder(orderNo) {
     });
 
 }
+function renderSingleBatch(title, orders) {
 
+    return `
+        <div style="background:#020617;padding:10px;border-radius:10px">
+            <h4>${title}</h4>
+
+            <table style="width:100%;text-align:center">
+                <tr>
+                    <th>Order</th>
+                    <th>Boxes</th>
+                    <th>CBM</th>
+                </tr>
+
+                ${orders.map(o => `
+                    <tr>
+                        <td>${o.orderNo}</td>
+                        <td>${o.boxes || 0}</td>
+                        <td>${o.cbm || 0}</td>
+                    </tr>
+                `).join("")}
+            </table>
+        </div>
+    `;
+}
+function renderBatchesTable() {
+
+    const container = document.getElementById("batchesTable");
+
+    const grouped = {};
+
+    allOrders.forEach(o => {
+        if (!o.batch) return;
+
+        if (!grouped[o.batch]) {
+            grouped[o.batch] = [];
+        }
+
+        grouped[o.batch].push(o);
+    });
+
+    const html = Object.keys(grouped).map(batchName => {
+        return renderSingleBatch(batchName, grouped[batchName]);
+    }).join("");
+
+    container.innerHTML = `
+        <h3 style="color:#38bdf8">📦 Batches</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            ${html}
+        </div>
+    `;
+}
 let editingReadyOrderNo = null;
+function getCurrentBatch() {
 
+    const now = new Date();
+
+    const t1 = new Date();
+    t1.setHours(10, 0, 0, 0);
+
+    const t2 = new Date();
+    t2.setHours(11, 30, 0, 0);
+
+    const t3 = new Date();
+    t3.setHours(13, 0, 0, 0);
+
+    const t4 = new Date();
+    t4.setHours(15, 30, 0, 0);
+
+    if (now >= t1 && now < t2) return "Batch 1";
+    if (now >= t2 && now < t3) return "Batch 2";
+    if (now >= t3 && now < t4) return "Batch 3";
+    if (now >= t4) return "Wakilni";
+
+    return "Early"; // قبل 10
+}
 function openReadyEditModal(orderNo, boxes, cbm) {
 
     editingReadyOrderNo = orderNo;
