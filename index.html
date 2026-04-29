@@ -467,7 +467,19 @@ Export Excel
             <button class="delete-edit-btn" onclick="cancelOrder()">
                 <i class="fa-solid fa-trash"></i> Cancel Order
             </button>
-
+<button id="deleteOrderBtn"
+style="
+    background:#ef4444;
+    border:none;
+    padding:8px 14px;
+    border-radius:8px;
+    color:white;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:10px;
+">
+    🗑 Delete Order
+</button>
         </div>
 
     </div>
@@ -536,57 +548,6 @@ color:white;
         </div>
     </div>
 
-    <!-- <audio id="successSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b3c5a.mp3"></audio>   -->
-    <!-- <footer class="pro-footer">
-
-        <div class="footer-content">
-            <div class="footer-left">
-                <h3>MY HOLDAL</h3>
-                <p>Advanced Warehouse & Order Management System</p>
-            </div>
-
-            <div class="footer-center">
-                <p>
-                    <i class="fa-solid fa-layer-group"></i>
-                    Smart Operations • Real-Time Tracking • Multi-Warehouse
-                </p>
-            </div>
-
-            <div class="footer-right">
-                <p>Designed & Developed by</p>
-                <h4 class="dev-name">Youssef Nachar</h4>
-            </div>
-        </div>
-
-        -- 🔥 INSIGHTS (اختياري/معلومات النظام) --
-        <div class="footer-insights">
-
-            <div class="insight-box">
-                <i class="fa-solid fa-bolt"></i>
-                <div>
-                    <span id="footerLiveStatus">System Online</span>
-                    <p>Real-time sync</p>
-                </div>
-            </div>
-
-            <div class="insight-box">
-                <i class="fa-solid fa-clock"></i>
-                <div>
-                    <span id="footerLastUpdate">--</span>
-                    <p>Last update</p>
-                </div>
-            </div>
-
-            <div class="insight-box">
-                <i class="fa-solid fa-database"></i>
-                <div>
-                    <span>Firebase</span>
-                    <p>Data source</p>
-                </div>
-            </div>
-
-        </div>
-    -->
 <div id="readyEditModal" class="hidden"
 style="position:fixed;inset:0;background:#000000aa;
 display:flex;align-items:center;justify-content:center;">
@@ -627,7 +588,7 @@ CBM
     <script type="module">
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, push, onValue, get, runTransaction, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, push, onValue, get, runTransaction, update,onChildAdded  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
@@ -646,6 +607,7 @@ CBM
 
         // 🔥 نجعلها متاحة عالمياً
         window.db = database;
+        window.onChildAdded = onChildAdded;
         window.ref = ref;
         window.push = push;
         window.onValue = onValue;
