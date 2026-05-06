@@ -10,6 +10,7 @@ let isLoading = false;
 let showOnlyPartial = false;
 let selectedDateFilter = null;
 let showOnlyDistributed = false;
+let localOrders = [];
 function hashData(data) {
     return JSON.stringify(
         data
@@ -1288,69 +1289,64 @@ function saveNewOrder() {
 
     const ordersRef = ref(db, "orders");
 
-    runTransaction(ordersRef, (orders) => {
+   runTransaction(ordersRef, (orders) => {
 
-        if (!orders) orders = {};
+    if (!orders) orders = {};
 
-        let existingKey = null;
+    let existingKey = null;
 
-        Object.entries(orders).forEach(([key, order]) => {
-            if (order.orderNo === orderNo) {
-                existingKey = key;
-            }
+    Object.entries(orders).forEach(([key, order]) => {
+        if (order.orderNo === orderNo) {
+            existingKey = key;
+        }
+    });
+
+    if (existingKey) {
+
+        const order = orders[existingKey];
+
+        const exists = order.warehouses?.some(
+            w => w.base.toUpperCase() === warehouseInput
+        );
+
+        if (exists) return orders;
+
+        order.warehouses.push({
+            base: warehouseInput,
+            packed: false,
+            receivedTime: new Date().toISOString()
         });
 
-        if (existingKey) {
+        orders[existingKey] = order;
 
-            const order = orders[existingKey];
+    } else {
 
-            const exists = order.warehouses?.some(
-                w => w.base.toUpperCase() === warehouseInput
-            );
+        const newKey = push(ref(db, "orders")).key;
 
-            if (exists) return orders;
+        orders[newKey] = {
+            orderNo: orderNo,
+            date: date,
+            createdAt: new Date().toISOString(),
+            history: [
+                {
+                    action: "created",
+                    date: new Date().toISOString(),
+                    by: localStorage.getItem("currentWarehouse")
+                }
+            ],
+            warehouses: [
+                {
+                    base: warehouseInput,
+                    packed: false,
+                    receivedTime: new Date().toISOString()
+                }
+            ],
+            status: "pending"
+        };
+    }
 
-            order.warehouses.push({
-                base: warehouseInput,
-                packed: false,
-                receivedTime: new Date().toISOString()
-            });
-
-            orders[existingKey] = order;
-
-        }
-
-        else {
-
-            const newKey = push(ref(db, "orders")).key;
-
-            orders[newKey] = {
-                orderNo: orderNo,
-                date: date,
-                createdAt: new Date().toISOString(),
-                history: [
-                    {
-                        action: "created",
-                        date: new Date().toISOString(),
-                        by: localStorage.getItem("currentWarehouse")
-                    }
-                ],
-
-                warehouses: [
-                    {
-                        base: warehouseInput,
-                        packed: false,
-                        receivedTime: new Date().toISOString()
-                    }
-                ],
-                status: "pending"
-            };
-
-        }
-
-        return orders;
-
-    }).then(() => {
+    return orders;
+}).then(() => {
         // showToast("✅ Order saved");
         clearNewOrderForm();
     });
@@ -2173,7 +2169,7 @@ function resolveOrderStatus(order) {
         return "canceled_before_delivery";
     }
 // 1️⃣ Distributed أولاً
-if (order.status === "distributed" || distributedOrdersMap[order.orderNo]) {
+if ( order.status === "distributed" ||distributedOrdersMap[order.orderNo] ||order.distributedTime) {
     return "distributed";
 }
 
@@ -2363,7 +2359,9 @@ function mergeOrdersByNumber(orders) {
                 warehouses: []
             };
         }
-
+if (order.status) {
+    map[orderNo].status = order.status;
+}
         (order.warehouses || []).forEach(w => {
 
             const base = (w.base || "").trim().toUpperCase();
@@ -2462,8 +2460,10 @@ function listenToOrders() {
         if (role === "manager" || currentWarehouse === "Packing Station") {
 
             // يرى كل الطلبات
-            allOrders = mergedOrders;
-            
+allOrders = mergeOrdersByNumber([
+    ...firebaseOrders,
+    ...localOrders
+]);            
 
         } else {
 
@@ -2476,9 +2476,9 @@ function listenToOrders() {
             );
 
         }
-mergedOrders.sort((a, b) => {
-    return new Date(b.createdAt) - new Date(a.createdAt);
-});
+allOrders = mergedOrders.sort((a, b) =>
+    new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date)
+);
         // 🔥 تحديث الحالة وعدد المستودعات
         allOrders.forEach(order => {
             order.status = resolveOrderStatus(order);
@@ -3102,7 +3102,9 @@ function updateDashboard() {
     for (const order of allOrders) {
         order.status = resolveOrderStatus(order);
     }
-    const todayOrders = applyFilters();
+const todayOrders = Array.isArray(applyFilters()) 
+    ? applyFilters() 
+    : Object.values(applyFilters() || {});
     const ACCUMULATE_FROM = "2026-02-02";
 
     const accumulatedOrders = allOrders.filter(o => {
@@ -3131,10 +3133,7 @@ function updateDashboard() {
 
         return dateToCheck >= CANCELED_START_DATE;
     });
-const distributedToday = todayOrders.filter(o =>
-    o.status === "distributed"
-);
-
+const distributedToday = todayOrders.filter(isDistributed);
 const readyToday = todayOrders.filter(o =>
     o.status === "ready_to_distribute"
 );
@@ -3362,9 +3361,13 @@ function updateSearch() {
         return;
     }
 
-    const filtered = allOrders.filter(o =>
-        o.orderNo.toLowerCase().includes(query)
-    );
+const filtered = allOrders.filter(o => {
+    const orderNo = o?.orderNo;
+
+    if (!orderNo) return false;
+
+    return orderNo.toLowerCase().includes(query);
+});
 
     if (!filtered.length) {
         tableDiv.innerHTML =
@@ -3580,6 +3583,14 @@ function moveToReady(orderNo) {
 
     });
 }
+function isDistributed(order) {
+    return (
+        order.status === "distributed" ||
+        order.readyToDistribute === false &&
+        order.batch ||
+        (order.history || []).some(h => h.action === "distributed")
+    );
+}
 function renderReadyOrders() {
 
     const container = document.getElementById("readyOrdersTable");
@@ -3774,7 +3785,6 @@ width:100%;
 
     renderReadyOrders();
 }
-
 function distributeSelectedOrders() {
 
     const checkboxes = document.querySelectorAll(".readyCheckbox:checked");
@@ -3784,50 +3794,59 @@ function distributeSelectedOrders() {
         return;
     }
 
-    const currentBatch = getCurrentBatch(); // ✅ هنا الجديد
+    const selectedOrders = Array.from(checkboxes).map(cb => cb.value);
+    const currentBatch = getCurrentBatch();
+    const todayISO = new Date().toISOString();
 
     const ordersRef = ref(db, "orders");
 
     get(ordersRef).then(snapshot => {
 
+        const updates = [];
+
         snapshot.forEach(child => {
 
             const order = child.val();
 
-            checkboxes.forEach(cb => {
+            if (selectedOrders.includes(order.orderNo)) {
 
-                if (order.orderNo === cb.value) {
+                const updateData = {
+                    status: "distributed",
+                    readyToDistribute: false,
+    distributedDate: todayISO.split("T")[0], // 👈 أضف هذا
 
-                    update(ref(db, "orders/" + child.key), {
-                        status: "distributed",
-                        batch: {
+                    // ✅ أهم تصحيح: batch object فيه اسم + تاريخ
+                    batch: {
                         name: currentBatch,
-                        date: new Date().toISOString().split("T")[0]},                        
-                        readyToDistribute: false,
-                        batch: currentBatch, // ✅ مهم جداً
-                        distributedTime: new Date().toISOString(),
-                        history: [
-                            ...(order.history || []),
-                            {
-                                action: "distributed",
-                                date: new Date().toISOString(),
-                                by: "Distribution",
-                                batch: currentBatch
-                            }
-                        ]
-                    }).then(() => {
-                        renderReadyOrders();
-                        renderBatchesTable(); // ✅ نرسم الجدول الجديد
-                    });
+        date: todayISO.split("T")[0],
+                        time: todayISO
+                    },
 
-                }
+                    distributedTime: todayISO,
 
-            });
+                    history: [
+                        ...(order.history || []),
+                        {
+                            action: "distributed",
+                            date: todayISO,
+                            by: "Distribution",
+                            batch: currentBatch
+                        }
+                    ]
+                };
 
+                updates.push(
+                    update(ref(db, "orders/" + child.key), updateData)
+                );
+            }
         });
 
-    });
+        return Promise.all(updates);
 
+    }).then(() => {
+        renderReadyOrders();
+        renderBatchesTable();
+    });
 }
 function moveToReadyFromInputs() {
 const emailOrComment = document.getElementById("readyEmailInput").value.trim();
@@ -3964,12 +3983,13 @@ function renderBatchesTable() {
 
     allOrders.forEach(o => {
         if (!o.batch) return;
+const batchName = o.batch?.name || "No Batch";
 
-        if (!grouped[o.batch]) {
-            grouped[o.batch] = [];
-        }
+if (!grouped[batchName]) {
+    grouped[batchName] = [];
+}
 
-        grouped[o.batch].push(o);
+grouped[batchName].push(o);
     });
 
     const html = Object.keys(grouped).map(batchName => {
