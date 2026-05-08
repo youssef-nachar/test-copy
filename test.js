@@ -506,6 +506,243 @@ ${Object.entries(warehouseMap).map(([wh, v]) => {
 </table>
 `;
 }
+function resetFilters() {
+
+    // 🔹 إلغاء Today Mode  
+    todayOnlyMode = false;
+
+    const todayBtn = document.getElementById("todayToggleBtn");
+    if (todayBtn) {
+        todayBtn.style.background = "#020617";
+        todayBtn.style.color = "white";
+        todayBtn.textContent = "Today Only";
+    }
+
+    // 🔹 إعادة التاريخ للقيمة الافتراضية  
+    const defaultStart = "2026-02-01";  // 01-Feb-2026  
+    const today = new Date().toISOString().slice(0, 10);
+
+    dateFrom.value = defaultStart;
+    dateTo.value = today;
+
+    // 🔹 إعادة ترتيب الطلبات  
+    orderSortMode = "newest";
+
+    // 🔹 تحديث الداشبورد  
+    updateDashboard();
+    updateFooterStats();
+}
+
+function FiltersReset() {
+
+    // 🔹 إلغاء Today Mode  
+    todayOnlyMode = false;
+
+    const todayBtn = document.getElementById("todayToggleBtn");
+    if (todayBtn) {
+        todayBtn.style.background = "#020617";
+        todayBtn.style.color = "white";
+        todayBtn.textContent = "Today Only";
+    }
+
+    // 🔹 إعادة التاريخ للقيمة الافتراضية  
+    const defaultStart = "2026-02-01";  // 01-Feb-2026  
+    const today = new Date().toISOString().slice(0, 10);
+
+    dateFrom.value = defaultStart;
+    dateTo.value = today;
+
+    // 🔹 إعادة ترتيب الطلبات  
+    orderSortMode = "newest";
+
+    // 🔹 تحديث الداشبورد  
+    updateDashboard();
+    updateFooterStats();
+}
+let lastDisplayedOrders = [];
+
+function updateSearch() {
+    const query = document.getElementById("orderSearch").value.trim().toLowerCase();
+    const resultsDiv = document.getElementById("searchResultsCard");
+    const tableDiv = document.getElementById("searchResultsTable");
+
+    if (!query) {
+        resultsDiv.style.display = "none";
+        return;
+    }
+
+const filtered = allOrders.filter(o => {
+    const orderNo = o?.orderNo;
+
+    if (!orderNo) return false;
+
+    return orderNo.toLowerCase().includes(query);
+});
+
+    if (!filtered.length) {
+        tableDiv.innerHTML =
+            "<p style='color:var(--warning)'>No matching orders found.</p>";
+        resultsDiv.style.display = "block";
+        return;
+    }
+
+    tableDiv.innerHTML = `  
+    <table>  
+        <tr>  
+            <th>Order #</th>  
+            <th>Warehouses</th>  
+            <th>Status</th>  
+        </tr>  
+        ${filtered.map(order => {
+
+        /* ---------------- STATUS ---------------- */
+
+        let statusText = "";
+
+        if ( order.status === "distributed"){
+            statusText = `<span style="color:#22c55e;font-weight:600;">Distributed</span>`;
+        }
+        else if(order.status ==="ready_to_distribute"){
+              statusText = `<span style="color:#3b82f6;font-weight:600;">ready to Distributed</span>`;
+
+        }
+        else if (order.status === "canceled") {
+            statusText = `<span style="color:#f59e0b;font-weight:600;">canceled</span>`;
+        }
+        else if (order.status === "completed") {
+            statusText = `<span style="color:#22c55e;font-weight:600;">In-Packing</span>`;
+        }
+        else if (order.status === "partial") {
+            statusText = `<span style="color:#f59e0b;font-weight:600;">Partial</span>`;
+        }
+        else {
+            statusText = `<span style="color:#f59e0b;font-weight:600;">Pending</span>`;
+        }
+
+        /* ---------------- WAREHOUSES ---------------- */
+
+        const warehousesHTML = `  
+                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center">  
+                    ${order.warehouses.map(w => {
+
+            const color = getWarehouseBadgeColor(order, w);
+
+            let tooltipText = "";
+
+            if (order.status === "distributed") {
+                tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
+            }
+            else if (w.packed) {
+                tooltipText = `Received at Packing: ${w.packingTime || w.receivedTime || "-"}`;
+            }
+            else {
+                tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
+            }
+
+            return `  
+                        <div style="position:relative;display:inline-block;">  
+                            <span style="  
+                                display:inline-block;  
+                                padding:5px 10px;  
+                                border-radius:8px;  
+                                font-size:12px;  
+                                font-weight:600;  
+                                background:${color};  
+                                color:black;  
+                                cursor:pointer;  
+                            ">  
+                                ${w.base.toUpperCase()}  
+                            </span>  
+  
+                            <div style="  
+                                position:absolute;  
+                                bottom:130%;  
+                                left:50%;  
+                                transform:translateX(-50%);  
+                                background:#0f172a;  
+                                color:white;  
+                                padding:8px 10px;  
+                                border-radius:8px;  
+                                font-size:12px;  
+                                white-space:nowrap;  
+                                opacity:0;  
+                                pointer-events:none;  
+                                transition:.2s ease;  
+                                box-shadow:0 8px 25px rgba(0,0,0,.4);  
+                                z-index:9999;  
+                            " class="wh-tooltip">  
+                                ${tooltipText}  
+                            </div>  
+                        </div>  
+                        `;
+        }).join("")}  
+                </div>  
+            `;
+
+        /* ---------------- DISTRIBUTED BOX ---------------- */
+
+        const distributedBox =
+            order.status === "distributed" && distributedOrdersMap[order.orderNo]
+                ? `  
+                <div style="  
+                    margin-top:8px;  
+                    padding:8px 10px;  
+                    border-radius:10px;  
+                    background:#022c22;  
+                    border:1px solid #065f46;  
+                    font-size:12px;  
+                    display:inline-block;  
+                ">  
+                    <div style="color:#22c55e;font-weight:600;">  
+                        <i class="fa-solid fa-truck"></i>  
+                        Distributed by ${distributedOrdersMap[order.orderNo].company}  
+                    </div>  
+                    <div style="opacity:.7;margin-top:2px;">  
+                        ${distributedOrdersMap[order.orderNo].date}  
+                    </div>  
+                </div>  
+                `
+                : "";
+
+        /* ---------------- ROW ---------------- */
+
+        return `  
+                <tr>  
+                    <td>  
+                        <div style="font-weight:600;">  
+                            ${order.orderNo}  
+                        </div>  
+                        ${distributedBox}  
+                    </td>  
+  
+                    <td>${warehousesHTML}</td>  
+  
+                    <td>${statusText}</td>  
+                </tr>  
+            `;
+    }).join("")}  
+    </table>  
+    `;
+
+    /* -------- Tooltip Hover Fix -------- */
+
+    setTimeout(() => {
+        document.querySelectorAll("td div > span").forEach(badge => {
+            badge.addEventListener("mouseenter", function () {
+                const tooltip = this.parentElement.querySelector(".wh-tooltip");
+                if (tooltip) tooltip.style.opacity = "1";
+            });
+            badge.addEventListener("mouseleave", function () {
+                const tooltip = this.parentElement.querySelector(".wh-tooltip");
+                if (tooltip) tooltip.style.opacity = "0";
+            });
+        });
+    }, 0);
+
+    resultsDiv.style.display = "block";
+}
+
+
 // MULTI-WAREHOUSE ORDERS  
 function renderMultiWHOrders(orders) {
     const m = orders.filter(x => (x.warehouses?.length || 0) > 1);
@@ -913,7 +1150,7 @@ function displayOrders(orders, title = "Order Details") {
         else if (order.status === "canceled_before_delivery") {
             statusText = "Canceled Before Delivery";
         }
-else if (order.status === "distributed" || order.status === "ready_to_distribute") {
+else if (order.status === "distributed") {
     statusText = "Distributed";
 }
         else if (order.status === "completed") {
@@ -947,10 +1184,21 @@ ${order.warehouses.map(w => {
     }
 
     let tooltipText = "";
+if (order.status === "distributed") {
 
-    if (order.status === "distributed") {
-        tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-    }
+    const distributedHistory = (order.history || [])
+        .find(h => h.action === "distributed");
+
+    const distDate =
+        order.distributedDate ||
+        order.batch?.date ||
+        distributedOrdersMap[order.orderNo]?.date ||
+        (distributedHistory
+            ? distributedHistory.date.split("T")[0]
+            : "-");
+
+    tooltipText = `Distributed at: ${distDate}`;
+}
     else if (w.packed) {
         tooltipText = `Received at Packing Station: ${w.receivedTime || "-"}`;
     }
@@ -2199,7 +2447,6 @@ if (order.status === "ready_to_distribute" || order.readyToDistribute === true) 
 allOrders.forEach(order => {
     order.status = resolveOrderStatus(order);
 });
-//const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz7O-KhP-qVecKdapMORuIlpQWaPzRFWAk4GRImEQAGAWM4Kk72RdLjgTNue95dEUp3JA/exec";
 function showOrderPreview(order) {
 
     const previewContainer = document.getElementById("newOrderPreview");
@@ -2324,8 +2571,6 @@ function showOrderPreview(order) {
         list.removeChild(list.lastChild);
     }
 }
-
-
 
 function clearNewOrderForm() {
 
@@ -3209,22 +3454,27 @@ function updateKPINumber(id, newValue) {
 
     element.textContent = newValue;
 }
-    function showDistributedOrders() {
-        const from = dateFrom.value || null;
-        const to = dateTo.value || null;
+function showDistributedOrders() {
 
-        const orders = allOrders.filter(o => {
-            const distDate = distributedOrdersMap[o.orderNo];
-            if (!distDate) return false;
+    const from = dateFrom.value || null;
+    const to = dateTo.value || null;
 
-            if (from && distDate < from) return false;
-            if (to && distDate > to) return false;
+    const orders = allOrders.filter(o => {
 
-            return true;
-        });
+        const distData = distributedOrdersMap[o.orderNo];
 
-        displayOrders(orders, "Distributed Orders");
-    }
+        if (!distData) return false;
+
+        const distDate = distData.date;
+
+        if (from && distDate < from) return false;
+        if (to && distDate > to) return false;
+
+        return true;
+    });
+
+    displayOrders(orders, "Distributed Orders");
+}
 function loadDistributedOrders() {
 
     return fetch(distributionSheetURL + "&t=" + Date.now(), {
@@ -3235,6 +3485,7 @@ function loadDistributedOrders() {
 
             const parsed = Papa.parse(csv, { skipEmptyLines: true });
             const rows = parsed.data;
+
             if (!rows.length) return;
 
             const headers = rows
@@ -3246,6 +3497,7 @@ function loadDistributedOrders() {
             const COMPANY_COL = headers.findIndex(h => h.includes("company"));
 
             if (ORDER_COL === -1 || DATE_COL === -1) {
+
                 console.warn("❌ Distribution columns not found");
                 return;
             }
@@ -3254,285 +3506,99 @@ function loadDistributedOrders() {
 
             rows.forEach(r => {
 
-                const orderNo = r[ORDER_COL]?.trim().toUpperCase();
+                const orderNo =
+                    r[ORDER_COL]?.trim().toUpperCase();
+
                 const rawDate = r[DATE_COL];
-                const company = COMPANY_COL !== -1 ? r[COMPANY_COL]?.trim() : "";
+
+                const company =
+                    COMPANY_COL !== -1
+                        ? r[COMPANY_COL]?.trim()
+                        : "";
 
                 if (!orderNo || !rawDate) return;
 
-                const formattedDate = formatDateForInput(rawDate);
+                const formattedDate =
+                    formatDateForInput(rawDate);
+
                 if (!formattedDate) return;
 
                 newMap[orderNo] = {
+
                     date: formattedDate,
+
                     company: company || "LMD"
                 };
+            });
+
+            // ✅ دمج الطلبات الموزعة يدوياً من Firebase
+            allOrders.forEach(order => {
+
+                if (
+                    order.status === "distributed" &&
+                    order.distributedDate
+                ) {
+
+                    // إذا غير موجود بالـ CSV
+                    if (!newMap[order.orderNo]) {
+
+                        newMap[order.orderNo] = {
+
+                            date: order.distributedDate,
+
+                            company:
+                                order.company ||
+                                order.batch?.company ||
+                                "LMD"
+                        };
+                    }
+                }
             });
 
             const newHash = hashDistribution(newMap);
 
             // 🔥 BLOCK إذا رجعت نسخة قديمة
-            if (lastDistributionHash && newHash === lastDistributionHash) {
-                return; // لا يوجد تغيير
+            if (
+                lastDistributionHash &&
+                newHash === lastDistributionHash
+            ) {
+                return;
             }
 
-            // 🔥 لو النسخة أقدم (عدد أقل) تجاهلها
+            // 🔥 لو النسخة أقدم تجاهلها
             if (
                 Object.keys(newMap).length <
                 Object.keys(distributionCache).length
             ) {
-                console.warn("⚠️ Older distribution snapshot blocked");
+
+                console.warn(
+                    "⚠️ Older distribution snapshot blocked"
+                );
+
                 return;
             }
 
             // ✅ اعتماد النسخة الجديدة
             distributionCache = newMap;
+
             distributedOrdersMap = newMap;
+
             lastDistributionHash = newHash;
+
             updateDashboard();
-            console.log("✅ Distribution updated safely");
+
+            console.log(
+                "✅ Distribution updated safely"
+            );
         })
         .catch(err => {
-            console.error("Distribution load error:", err);
+
+            console.error(
+                "Distribution load error:",
+                err
+            );
         });
 }
-function resetFilters() {
-
-    // 🔹 إلغاء Today Mode  
-    todayOnlyMode = false;
-
-    const todayBtn = document.getElementById("todayToggleBtn");
-    if (todayBtn) {
-        todayBtn.style.background = "#020617";
-        todayBtn.style.color = "white";
-        todayBtn.textContent = "Today Only";
-    }
-
-    // 🔹 إعادة التاريخ للقيمة الافتراضية  
-    const defaultStart = "2026-02-01";  // 01-Feb-2026  
-    const today = new Date().toISOString().slice(0, 10);
-
-    dateFrom.value = defaultStart;
-    dateTo.value = today;
-
-    // 🔹 إعادة ترتيب الطلبات  
-    orderSortMode = "newest";
-
-    // 🔹 تحديث الداشبورد  
-    updateDashboard();
-    updateFooterStats();
-}
-
-function FiltersReset() {
-
-    // 🔹 إلغاء Today Mode  
-    todayOnlyMode = false;
-
-    const todayBtn = document.getElementById("todayToggleBtn");
-    if (todayBtn) {
-        todayBtn.style.background = "#020617";
-        todayBtn.style.color = "white";
-        todayBtn.textContent = "Today Only";
-    }
-
-    // 🔹 إعادة التاريخ للقيمة الافتراضية  
-    const defaultStart = "2026-02-01";  // 01-Feb-2026  
-    const today = new Date().toISOString().slice(0, 10);
-
-    dateFrom.value = defaultStart;
-    dateTo.value = today;
-
-    // 🔹 إعادة ترتيب الطلبات  
-    orderSortMode = "newest";
-
-    // 🔹 تحديث الداشبورد  
-    updateDashboard();
-    updateFooterStats();
-}
-let lastDisplayedOrders = [];
-
-function updateSearch() {
-    const query = document.getElementById("orderSearch").value.trim().toLowerCase();
-    const resultsDiv = document.getElementById("searchResultsCard");
-    const tableDiv = document.getElementById("searchResultsTable");
-
-    if (!query) {
-        resultsDiv.style.display = "none";
-        return;
-    }
-
-const filtered = allOrders.filter(o => {
-    const orderNo = o?.orderNo;
-
-    if (!orderNo) return false;
-
-    return orderNo.toLowerCase().includes(query);
-});
-
-    if (!filtered.length) {
-        tableDiv.innerHTML =
-            "<p style='color:var(--warning)'>No matching orders found.</p>";
-        resultsDiv.style.display = "block";
-        return;
-    }
-
-    tableDiv.innerHTML = `  
-    <table>  
-        <tr>  
-            <th>Order #</th>  
-            <th>Warehouses</th>  
-            <th>Status</th>  
-        </tr>  
-        ${filtered.map(order => {
-
-        /* ---------------- STATUS ---------------- */
-
-        let statusText = "";
-
-        if ( order.status === "distributed"){
-            statusText = `<span style="color:#22c55e;font-weight:600;">Distributed</span>`;
-        }
-        else if(order.status ==="ready_to_distribute"){
-              statusText = `<span style="color:#3b82f6;font-weight:600;">ready to Distributed</span>`;
-
-        }
-        else if (order.status === "canceled") {
-            statusText = `<span style="color:#f59e0b;font-weight:600;">canceled</span>`;
-        }
-        else if (order.status === "completed") {
-            statusText = `<span style="color:#22c55e;font-weight:600;">In-Packing</span>`;
-        }
-        else if (order.status === "partial") {
-            statusText = `<span style="color:#f59e0b;font-weight:600;">Partial</span>`;
-        }
-        else {
-            statusText = `<span style="color:#f59e0b;font-weight:600;">Pending</span>`;
-        }
-
-        /* ---------------- WAREHOUSES ---------------- */
-
-        const warehousesHTML = `  
-                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center">  
-                    ${order.warehouses.map(w => {
-
-            const color = getWarehouseBadgeColor(order, w);
-
-            let tooltipText = "";
-
-            if (order.status === "distributed") {
-                tooltipText = `Distributed at: ${distributedOrdersMap[order.orderNo]?.date || "-"}`;
-            }
-            else if (w.packed) {
-                tooltipText = `Received at Packing: ${w.packingTime || w.receivedTime || "-"}`;
-            }
-            else {
-                tooltipText = `Received in Warehouse: ${w.receivedTime || "-"}`;
-            }
-
-            return `  
-                        <div style="position:relative;display:inline-block;">  
-                            <span style="  
-                                display:inline-block;  
-                                padding:5px 10px;  
-                                border-radius:8px;  
-                                font-size:12px;  
-                                font-weight:600;  
-                                background:${color};  
-                                color:black;  
-                                cursor:pointer;  
-                            ">  
-                                ${w.base.toUpperCase()}  
-                            </span>  
-  
-                            <div style="  
-                                position:absolute;  
-                                bottom:130%;  
-                                left:50%;  
-                                transform:translateX(-50%);  
-                                background:#0f172a;  
-                                color:white;  
-                                padding:8px 10px;  
-                                border-radius:8px;  
-                                font-size:12px;  
-                                white-space:nowrap;  
-                                opacity:0;  
-                                pointer-events:none;  
-                                transition:.2s ease;  
-                                box-shadow:0 8px 25px rgba(0,0,0,.4);  
-                                z-index:9999;  
-                            " class="wh-tooltip">  
-                                ${tooltipText}  
-                            </div>  
-                        </div>  
-                        `;
-        }).join("")}  
-                </div>  
-            `;
-
-        /* ---------------- DISTRIBUTED BOX ---------------- */
-
-        const distributedBox =
-            order.status === "distributed" && distributedOrdersMap[order.orderNo]
-                ? `  
-                <div style="  
-                    margin-top:8px;  
-                    padding:8px 10px;  
-                    border-radius:10px;  
-                    background:#022c22;  
-                    border:1px solid #065f46;  
-                    font-size:12px;  
-                    display:inline-block;  
-                ">  
-                    <div style="color:#22c55e;font-weight:600;">  
-                        <i class="fa-solid fa-truck"></i>  
-                        Distributed by ${distributedOrdersMap[order.orderNo].company}  
-                    </div>  
-                    <div style="opacity:.7;margin-top:2px;">  
-                        ${distributedOrdersMap[order.orderNo].date}  
-                    </div>  
-                </div>  
-                `
-                : "";
-
-        /* ---------------- ROW ---------------- */
-
-        return `  
-                <tr>  
-                    <td>  
-                        <div style="font-weight:600;">  
-                            ${order.orderNo}  
-                        </div>  
-                        ${distributedBox}  
-                    </td>  
-  
-                    <td>${warehousesHTML}</td>  
-  
-                    <td>${statusText}</td>  
-                </tr>  
-            `;
-    }).join("")}  
-    </table>  
-    `;
-
-    /* -------- Tooltip Hover Fix -------- */
-
-    setTimeout(() => {
-        document.querySelectorAll("td div > span").forEach(badge => {
-            badge.addEventListener("mouseenter", function () {
-                const tooltip = this.parentElement.querySelector(".wh-tooltip");
-                if (tooltip) tooltip.style.opacity = "1";
-            });
-            badge.addEventListener("mouseleave", function () {
-                const tooltip = this.parentElement.querySelector(".wh-tooltip");
-                if (tooltip) tooltip.style.opacity = "0";
-            });
-        });
-    }, 0);
-
-    resultsDiv.style.display = "block";
-}
-
-
 function initReadyToDistribute() {
 
     const input = document.getElementById("readyOrderInput");
@@ -3797,6 +3863,7 @@ function distributeSelectedOrders() {
     const selectedOrders = Array.from(checkboxes).map(cb => cb.value);
     const currentBatch = getCurrentBatch();
     const todayISO = new Date().toISOString();
+    const todayDate = todayISO.split("T")[0];
 
     const ordersRef = ref(db, "orders");
 
@@ -3811,14 +3878,15 @@ function distributeSelectedOrders() {
             if (selectedOrders.includes(order.orderNo)) {
 
                 const updateData = {
+
                     status: "distributed",
                     readyToDistribute: false,
-    distributedDate: todayISO.split("T")[0], // 👈 أضف هذا
 
-                    // ✅ أهم تصحيح: batch object فيه اسم + تاريخ
+                    distributedDate: todayDate,
+
                     batch: {
                         name: currentBatch,
-        date: todayISO.split("T")[0],
+                        date: todayDate,
                         time: todayISO
                     },
 
@@ -3838,14 +3906,51 @@ function distributeSelectedOrders() {
                 updates.push(
                     update(ref(db, "orders/" + child.key), updateData)
                 );
+
+                // ✅ تحديث محلي مباشر
+                const localOrder = allOrders.find(
+                    o => o.orderNo === order.orderNo
+                );
+
+                if (localOrder) {
+
+                    localOrder.status = "distributed";
+                    localOrder.readyToDistribute = false;
+
+                    localOrder.distributedDate = todayDate;
+
+                    localOrder.batch = {
+                        name: currentBatch,
+                        date: todayDate,
+                        time: todayISO
+                    };
+
+                    localOrder.distributedTime = todayISO;
+                }
+
+                // ✅ أهم إصلاح للـ KPI
+                distributedOrdersMap[order.orderNo] = {
+                    date: todayDate,
+                    company: order.company || "LMD"
+                };
             }
         });
 
         return Promise.all(updates);
 
     }).then(() => {
+
         renderReadyOrders();
         renderBatchesTable();
+        updateDashboard();
+
+        console.log("✅ Orders distributed successfully");
+
+    }).catch(err => {
+
+        console.error(err);
+        alert("Distribution failed");
+
     });
 }
 function moveToReadyFromInputs() {
