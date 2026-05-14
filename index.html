@@ -16,36 +16,52 @@
 <body>
     <div id="tooltip" class="tooltip hidden"></div>
 
-    <div id="loginSection">
-        <!-- كل كود الـ login هنا -->
-        <div id="loginContainer" class="login-wrapper">
-            <form id="loginForm" class="login-card">
-                <h2 class="login-title">
-                    <span>MY</span>HOLDAL
-                </h2>
+  <div id="loginSection">
 
-                <div class="input-group">
-                    <i class="fa-solid fa-user"></i>
-                    <input id="username" placeholder="Username" required>
-                </div>
+    <div id="loginContainer" class="login-wrapper">
 
-                <div class="input-group">
-                    <i class="fa-solid fa-lock"></i>
-                    <input id="password" type="password" placeholder="Password" required>
-                </div>
+   <form id="loginForm" class="login-card">
 
-                <button class="login-btn">
-                    <i class="fa-solid fa-right-to-bracket"></i> Login
-                </button>
+    <!-- LOGO -->
 
-                <p id="loginError" class="login-error hidden">
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    Incorrect username or password
-                </p>
-            </form>
-        </div>
-
+     <div class="login-logo">
+        <img src="https://lh5.googleusercontent.com/7lBW3j5HqbadbeeiHB2ATG3KI7qtkZ8Hatu3B3cQN0ehCY71tuLnlkTGkpnwH9SLXqjc2UVg5aPvTrclw2Wa-x8MIvHjkcolJ_irVro_E4DE9wnFAaLkbVDgv9MO7UUI7BU6v9a7"
+             alt="MYHOLDAL Logo">
     </div>
+
+    <p class="login-subtitle">
+        Warehouse Management Dashboard
+    </p>
+
+    <div class="input-group">
+        <input id="username"
+               placeholder="Username"
+               required>
+
+        <i class="fa-solid fa-user"></i>
+    </div>
+
+    <div class="input-group">
+        <input id="password"
+               type="password"
+               placeholder="Password"
+               required>
+
+        <i class="fa-solid fa-lock"></i>
+    </div>
+
+    <button class="login-btn">
+        <i class="fa-solid fa-right-to-bracket"></i>
+        Login
+    </button>
+<p id="loginError" class="login-error hidden">
+    <i class="fa-solid fa-circle-exclamation"></i>
+    Incorrect username or password
+</p>
+</form>
+    </div>
+
+</div>   
     <div id="dashboard" class="hidden app">
         <aside class="sidebar">
             <h2></i>Operation dashboard system</h2>
